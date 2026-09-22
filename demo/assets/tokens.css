@@ -154,7 +154,12 @@ body {
   background: var(--surface-app);
   -webkit-font-smoothing: antialiased;
 }
-button, input, textarea { font: inherit; color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+
+/* El atributo hidden tiene menos especificidad que cualquier clase que
+   defina display, así que un overlay oculto seguía capturando clics.
+   Esta regla lo zanja para todo el proyecto. */
+[hidden] { display: none !important; }
 :focus-visible {
   outline: 2px solid var(--os-cyan-500);
   outline-offset: 2px;

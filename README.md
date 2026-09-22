@@ -62,7 +62,16 @@ El chat y el CRM son cosas distintas y viven separadas:
 |---|---|---|
 | Quién lo usa | el paciente | el equipo de Open Side |
 | Qué muestra | réplica de WhatsApp: burbujas, colitas, checks de leído, indicador de escritura, quick replies | bandeja de tres columnas: conversaciones, hilo, datos del paciente |
-| Extra | inspector con la traza del agente, escenarios y métricas | notas privadas, labels, custom attributes, tomar/devolver/resolver |
+| Extra | inspector con la traza del agente, escenarios y métricas | asignación, prioridad, posponer, SLA, labels, respuestas rápidas, atajos |
+
+**El CRM**, con el modelo de datos de Chatwoot y código propio:
+
+- **Seis vistas** con contadores en vivo: Activas · Mías · Libres · Bot · Pospuestas · Listas.
+- **Asignación** a agentes y equipos · **prioridad** en cuatro niveles · **posponer** con reingreso automático.
+- **Reloj de espera** con semáforo (verde <5 min, ámbar <15, rojo por encima) y **contador de no leídos**.
+- **Respuestas rápidas**: se abren con `/`, se filtran al teclear y **rellenan los datos del paciente**.
+- **Labels editables**, **historial del paciente** e **hilo con separadores de día**.
+- **Atajos**: `j`/`k` navegar, `a` asignarme, `e` resolver, `p` devolver al bot, `n` nota, `r` responder, `/` buscar, `?` ayuda.
 
 Se comunican por `demo/src/bus.js`, que hace en local lo que en producción hace el webhook de Chatwoot. Ábrelas en dos pestañas y pruébalo:
 

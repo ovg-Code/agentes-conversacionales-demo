@@ -61,12 +61,20 @@ export function obtenerConversacion(id) {
 export function publicarConversacion(conv) {
   const datos = leerTodo();
   const previa = datos[conv.id] || {};
-  const fusionada = {
+  const fusionada = normalizar({
     ...previa,
     ...conv,
+    // El chat no manda los campos operativos: son del CRM y no debe pisarlos.
+    asignadoA: previa.asignadoA ?? null,
+    equipo: previa.equipo ?? null,
+    prioridad: previa.prioridad ?? null,
+    pospuestoHasta: previa.pospuestoHasta ?? null,
+    esperaDesde: previa.esperaDesde ?? Date.now(),
+    primeraRespuesta: previa.primeraRespuesta ?? null,
+    agenteVistoEn: previa.agenteVistoEn ?? 0,
     mensajes: conv.mensajes || previa.mensajes || [],
     actualizado: Date.now()
-  };
+  });
   datos[conv.id] = fusionada;
   escribirTodo(datos);
   emitir({ tipo: 'conversacion_actualizada', conversacion: fusionada });
@@ -81,9 +89,108 @@ export function publicarMensaje(idConversacion, mensaje) {
   const completo = { id: 'm' + Date.now() + Math.random().toString(36).slice(2, 6), ts: Date.now(), ...mensaje };
   conv.mensajes = [...(conv.mensajes || []), completo];
   conv.actualizado = Date.now();
+
+  if (mensaje.autor === 'paciente') {
+    // Vuelve a estar esperando respuesta.
+    conv.esperaDesde = conv.esperaDesde || completo.ts;
+    if (conv.pospuestoHasta) { conv.pospuestoHasta = null; conv.crm = { ...(conv.crm || {}), status: 'open' }; }
+  } else if (!mensaje.privado) {
+    if (!conv.primeraRespuesta && mensaje.autor === 'humano') conv.primeraRespuesta = completo.ts;
+    conv.esperaDesde = null;        // respondida: deja de correr el reloj
+    conv.agenteVistoEn = completo.ts;
+  }
   escribirTodo(datos);
   emitir({ tipo: 'mensaje_nuevo', idConversacion, mensaje: completo });
   return completo;
+}
+
+/* ---------- Campos operativos (modelo tomado de Chatwoot) ---------- */
+
+/**
+ * Normaliza una conversación para que siempre tenga los campos que el CRM
+ * espera. El modelo sigue al de Chatwoot: estado, asignación, equipo,
+ * prioridad, posposición, y las marcas de tiempo que hacen falta para
+ * calcular espera y no leídos.
+ */
+export function normalizar(conv) {
+  const ahora = Date.now();
+  return {
+    asignadoA: null,          // id del agente humano, null = sin asignar
+    equipo: null,
+    prioridad: null,          // low | medium | high | urgent
+    pospuestoHasta: null,     // marca temporal; mientras no llega, no aparece en la bandeja activa
+    esperaDesde: ahora,       // desde cuándo espera respuesta (SLA)
+    primeraRespuesta: null,   // para medir el tiempo a primera respuesta
+    agenteVistoEn: 0,         // hasta dónde ha leído el equipo
+    ...conv
+  };
+}
+
+/** Estado efectivo: una conversación pospuesta cuyo plazo venció vuelve a la cola. */
+export function estadoEfectivo(conv) {
+  if (!conv) return 'pending';
+  const estado = conv.crm?.status || 'pending';
+  if (estado === 'snoozed' && conv.pospuestoHasta && conv.pospuestoHasta <= Date.now()) return 'open';
+  return estado;
+}
+
+/** Mensajes del paciente que el equipo aún no ha visto. */
+export function sinLeer(conv) {
+  if (!conv) return 0;
+  const visto = conv.agenteVistoEn || 0;
+  return (conv.mensajes || []).filter(m => m.autor === 'paciente' && m.ts > visto).length;
+}
+
+/** Cambia campos operativos sueltos (asignación, prioridad, equipo…). */
+export function actualizarCampos(idConversacion, campos, quien = 'humano') {
+  const datos = leerTodo();
+  const conv = datos[idConversacion];
+  if (!conv) return null;
+  Object.assign(conv, campos);
+  conv.actualizado = Date.now();
+  escribirTodo(datos);
+  emitir({ tipo: 'campos_actualizados', idConversacion, campos, quien });
+  return conv;
+}
+
+/** Marca como leída hasta ahora. */
+export function marcarLeida(idConversacion) {
+  const datos = leerTodo();
+  const conv = datos[idConversacion];
+  if (!conv) return null;
+  if ((conv.agenteVistoEn || 0) >= (conv.actualizado || 0)) return conv;   // ya estaba al día
+  conv.agenteVistoEn = Date.now();
+  escribirTodo(datos);
+  emitir({ tipo: 'leida', idConversacion });
+  return conv;
+}
+
+/** Posponer: sale de la bandeja activa hasta la marca indicada. */
+export function posponer(idConversacion, hasta, quien = 'humano') {
+  const datos = leerTodo();
+  const conv = datos[idConversacion];
+  if (!conv) return null;
+  conv.pospuestoHasta = hasta;
+  conv.crm = { ...(conv.crm || {}), status: 'snoozed' };
+  conv.actualizado = Date.now();
+  escribirTodo(datos);
+  emitir({ tipo: 'pospuesta', idConversacion, hasta, quien });
+  return conv;
+}
+
+/** Añade o quita un label. */
+export function alternarLabel(idConversacion, label) {
+  const datos = leerTodo();
+  const conv = datos[idConversacion];
+  if (!conv) return null;
+  const crm = conv.crm || (conv.crm = {});
+  const actuales = new Set(crm.labels || []);
+  actuales.has(label) ? actuales.delete(label) : actuales.add(label);
+  crm.labels = [...actuales];
+  conv.actualizado = Date.now();
+  escribirTodo(datos);
+  emitir({ tipo: 'labels_actualizados', idConversacion, labels: crm.labels });
+  return conv;
 }
 
 /* ---------- Escritura desde el CRM ---------- */

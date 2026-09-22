@@ -33,7 +33,11 @@
     </div>
 
     <div class="spacer"></div>
-    <a class="ctl" href="index.html" title="Abrir el simulador de WhatsApp en esta pestaña">💬 Simulador de chat</a>
+    <div class="yo" title="Sesión iniciada">
+      <div class="conv-avatar" id="yo-avatar" aria-hidden="true">—</div>
+      <div class="yo-txt"><strong id="yo-nombre">—</strong><span id="yo-rol">—</span></div>
+    </div>
+    <a class="ctl" href="index.html" title="Abrir el simulador de WhatsApp">💬 Chat</a>
     <button class="ctl" id="theme" type="button">🌙 Oscuro</button>
   </header>
 
@@ -42,15 +46,31 @@
     <!-- ============ Bandeja ============ -->
     <section class="crm-col" aria-label="Bandeja de entrada">
       <div class="inbox-filters" role="tablist">
-        <button class="inbox-filter" role="tab" aria-selected="true"  data-filtro="todas">
-          <span class="count" id="c-todas">0</span>Todas</button>
-        <button class="inbox-filter" role="tab" aria-selected="false" data-filtro="pending">
-          <span class="count" id="c-pending">0</span>Bot</button>
-        <button class="inbox-filter" role="tab" aria-selected="false" data-filtro="open">
-          <span class="count" id="c-open">0</span>Humano</button>
-        <button class="inbox-filter" role="tab" aria-selected="false" data-filtro="resolved">
-          <span class="count" id="c-resolved">0</span>Listas</button>
+        <button class="inbox-filter" role="tab" aria-selected="true"  data-vista="todas">
+          Activas <span class="count" id="c-todas">0</span></button>
+        <button class="inbox-filter" role="tab" aria-selected="false" data-vista="mias">
+          Mías <span class="count" id="c-mias">0</span></button>
+        <button class="inbox-filter" role="tab" aria-selected="false" data-vista="sin_asignar">
+          Libres <span class="count" id="c-sin_asignar">0</span></button>
       </div>
+      <div class="inbox-filters secundaria" role="tablist">
+        <button class="inbox-filter" role="tab" aria-selected="false" data-vista="pending">
+          Bot <span class="count" id="c-pending">0</span></button>
+        <button class="inbox-filter" role="tab" aria-selected="false" data-vista="snoozed">
+          Pospuestas <span class="count" id="c-snoozed">0</span></button>
+        <button class="inbox-filter" role="tab" aria-selected="false" data-vista="resolved">
+          Listas <span class="count" id="c-resolved">0</span></button>
+      </div>
+
+      <label class="orden-wrap">
+        <span>Ordenar</span>
+        <select id="orden" aria-label="Ordenar conversaciones">
+          <option value="reciente">Más reciente</option>
+          <option value="espera">Lleva más esperando</option>
+          <option value="prioridad">Prioridad</option>
+        </select>
+      </label>
+
       <div class="inbox-list" id="lista" role="list"></div>
     </section>
 
@@ -73,16 +93,17 @@
       </div>
 
       <div class="composer" id="composer" hidden>
+        <div class="rapidas" id="rapidas" hidden role="listbox" aria-label="Respuestas rápidas"></div>
         <div class="composer-tabs" role="tablist">
           <button class="composer-tab" role="tab" aria-selected="true"  data-modo="responder">Responder al paciente</button>
           <button class="composer-tab nota" role="tab" aria-selected="false" data-modo="nota">Nota privada</button>
         </div>
         <div class="composer-body">
-          <textarea id="composer-texto" rows="1" placeholder="Escribe tu respuesta…" aria-label="Mensaje"></textarea>
+          <textarea id="composer-texto" rows="1" placeholder="Escribe tu respuesta…   (/ para respuestas rápidas)" aria-label="Mensaje"></textarea>
           <button class="btn primary" id="enviar" type="button">Enviar</button>
         </div>
         <div class="composer-hint" id="composer-hint">
-          El paciente recibirá este mensaje en WhatsApp. Al responder, la conversación pasa a <strong>open</strong> y el bot deja de contestar.
+          Al responder, la conversación pasa a <strong>open</strong>, se te asigna y el bot deja de contestar.
         </div>
       </div>
     </section>
@@ -95,6 +116,15 @@
     </aside>
 
   </main>
+  <div class="ayuda" id="ayuda" hidden role="dialog" aria-label="Atajos de teclado">
+    <div class="ayuda-caja">
+      <div class="ayuda-head">
+        <strong>Atajos de teclado</strong>
+        <button class="btn" id="ayuda-cerrar" type="button">Cerrar</button>
+      </div>
+      <div class="ayuda-lista" id="ayuda-lista"></div>
+    </div>
+  </div>
 </div>
 
 <script type="module" src="src/crm.js"></script>

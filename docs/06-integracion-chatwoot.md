@@ -219,3 +219,43 @@ No vamos a desplegar Chatwoot como producto final: **haremos nuestra propia vers
 `demo/crm.html` es la primera versión propia: bandeja con filtros por estado y contadores, hilo con distinción visual entre paciente / agente virtual / persona, notas privadas, panel de custom attributes y acciones de tomar, devolver al bot y resolver.
 
 Hoy se alimenta del bus local (`demo/src/bus.js`). El siguiente paso es sustituir ese bus por la API real —la de Chatwoot mientras lo usemos, o la nuestra cuando la tengamos—, sin tocar la interfaz: el CRM ya está escrito contra un modelo de datos, no contra un transporte.
+
+---
+
+## 10. Nuestro CRM, segunda tanda
+
+Comparando contra el esquema real de `conversations` en Chatwoot, faltaban los campos que convierten una bandeja en una herramienta de trabajo. Ya están:
+
+| Campo de Chatwoot | En nuestro CRM |
+|---|---|
+| `assignee_id` | Asignación a agente, con menú y atajo `a` |
+| `team_id` | Equipos (agenda, convenios, tecnología RM, general) |
+| `priority` | Cuatro niveles, visibles en la fila y ordenables |
+| `status: snoozed` | Posponer 1 h / 3 h / mañana / próxima semana, con reingreso automático |
+| `waiting_since` | Reloj de espera con semáforo: verde <5 min, ámbar <15, rojo por encima |
+| `first_reply_created_at` | Tiempo a primera respuesta, en el panel |
+| `agent_last_seen_at` | Contador de mensajes sin leer por conversación |
+| `cached_label_list` | Labels editables desde el panel, de un catálogo cerrado |
+
+Y lo que Chatwoot tiene en UI y también hemos incorporado:
+
+- **Vistas de bandeja**: Activas · Mías · Libres · Bot · Pospuestas · Listas, con contadores en vivo.
+- **Ordenación**: más reciente, lleva más esperando, prioridad.
+- **Respuestas rápidas** (las macros de Chatwoot): se abren escribiendo `/`, se filtran al teclear, se navegan con flechas y **rellenan los datos del paciente** al insertarse.
+- **Historial del paciente**: otras conversaciones de la misma cédula o teléfono, navegables.
+- **Atajos de teclado**: `j`/`k`, `a`, `e`, `p`, `n`, `r`, `/`, `?`.
+- **Separadores de día** en el hilo.
+
+### Un bug que encontró la prueba de navegador
+
+El panel de ayuda usaba `hidden`, pero `.ayuda { display: grid }` gana en especificidad al atributo. El overlay estaba invisible **y capturando todos los clics de la pantalla**. Arreglado con una regla global `[hidden] { display: none !important; }` en `tokens.css`.
+
+### Lo que todavía falta para equipararlo
+
+- Adjuntos y archivos compartidos
+- Menciones (`@`) en notas privadas
+- Encuesta de satisfacción (CSAT)
+- Políticas de SLA configurables, no un umbral fijo
+- Informes: carga por agente, tiempos medios, volumen por label
+- Búsqueda dentro de la conversación
+- Persistencia real: hoy todo vive en el bus local
