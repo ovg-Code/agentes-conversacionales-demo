@@ -44,13 +44,18 @@
   padding: 6px var(--sp-3);
   font-size: var(--fs-sm);
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease);
+  text-decoration: none; color: inherit;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-press) var(--ease-out);
 }
-.ctl:hover { background: var(--surface-border); }
+@media (hover: hover) and (pointer: fine) {
+  .ctl:hover { background: var(--surface-border); }
+  .ctl.primary:hover { background: var(--os-blue-700); }
+}
+.ctl:active { transform: scale(0.97); }
 .ctl.primary {
   background: var(--os-blue-600); color: #fff; border-color: transparent;
 }
-.ctl.primary:hover { background: var(--os-blue-700); }
 
 /* ---------- Layout principal ---------- */
 .main {
@@ -101,7 +106,12 @@
   border-radius: var(--r-sm) var(--r-sm) 0 0;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-press) var(--ease-out);
 }
+.tab:active { transform: scale(0.97); }
 .tab[aria-selected="true"] {
   color: var(--os-blue-600);
   background: var(--surface-panel);
@@ -117,9 +127,9 @@
   margin-bottom: var(--sp-3);
   overflow: hidden;
   background: var(--surface-panel);
-  animation: fade-up var(--dur-base) var(--ease);
+  animation: fade-up var(--dur-panel) var(--ease-out) backwards;
 }
-@keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: none; } }
 
 .trace-head {
   display: flex; align-items: center; gap: var(--sp-2);
@@ -128,7 +138,13 @@
   font-size: var(--fs-sm);
   cursor: pointer;
   width: 100%; border: 0; text-align: left;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-press) var(--ease-out);
 }
+@media (hover: hover) and (pointer: fine) {
+  .trace-head:hover { background: var(--surface-border); }
+}
+.trace-head:active { transform: scale(0.995); }
 .trace-head .turn {
   font-family: var(--font-mono); font-size: 11px;
   color: var(--text-secondary); flex: 0 0 auto;
@@ -249,9 +265,14 @@
   padding: var(--sp-3);
   background: var(--surface-panel);
   cursor: pointer;
-  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  transition: border-color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-press) var(--ease-out);
 }
-.scenario:hover { border-color: var(--os-blue-400); background: var(--os-blue-100); }
+@media (hover: hover) and (pointer: fine) {
+  .scenario:hover { border-color: var(--os-blue-400); background: var(--os-blue-100); }
+}
+.scenario:active { transform: scale(0.985); }
 .scenario .s-title { font-weight: 600; font-size: var(--fs-sm); display: flex; align-items: center; gap: var(--sp-2); }
 .scenario .s-desc { font-size: var(--fs-xs); color: var(--text-secondary); }
 

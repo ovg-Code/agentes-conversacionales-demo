@@ -57,7 +57,11 @@
   padding: var(--sp-2); border-radius: var(--r-full);
   display: flex; align-items: center;
 }
-.wa-header-actions button:hover { background: rgba(128,128,128,.14); }
+@media (hover: hover) and (pointer: fine) {
+  .wa-header-actions button:hover { background: rgba(128,128,128,.14); }
+}
+.wa-header-actions button:active { transform: scale(0.92); }
+.wa-header-actions button { transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out); }
 
 /* ---------- Hilo ---------- */
 .wa-thread {
@@ -121,10 +125,10 @@
   color: var(--wa-text);
   word-wrap: break-word;
   overflow-wrap: anywhere;
-  animation: bubble-in var(--dur-base) var(--ease);
+  animation: bubble-in var(--dur-panel) var(--ease-out) backwards;
 }
 @keyframes bubble-in {
-  from { opacity: 0; transform: translateY(6px) scale(.98); }
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
   to   { opacity: 1; transform: none; }
 }
 .wa-row.in  .wa-bubble { background: var(--wa-in-bubble);  border-top-left-radius: 8px; }
@@ -166,7 +170,10 @@
   margin: 4px 0 -4px 8px;
   user-select: none;
 }
-.wa-tick { width: 15px; height: 11px; display: inline-block; }
+.wa-tick {
+  width: 15px; height: 11px; display: inline-block;
+  transition: color var(--dur-base) var(--ease-out);
+}
 .wa-tick.read { color: var(--wa-tick-read); }
 
 /* Etiqueta de bot dentro de la burbuja */
@@ -189,7 +196,7 @@
 .wa-typing i {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--wa-text-2); opacity: .5;
-  animation: dot 1.2s infinite var(--ease);
+  animation: dot 1.2s infinite var(--ease-in-out);
 }
 .wa-typing i:nth-child(2) { animation-delay: .18s; }
 .wa-typing i:nth-child(3) { animation-delay: .36s; }
@@ -213,10 +220,14 @@
   border-radius: var(--r-sm);
   text-align: center;
   min-height: 36px;
-  transition: background var(--dur-fast) var(--ease);
+  transition: background-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-press) var(--ease-out);
 }
-.wa-btn:hover { background: color-mix(in srgb, var(--wa-chip-text) 10%, transparent); }
-.wa-btn:disabled { opacity: .45; cursor: default; }
+@media (hover: hover) and (pointer: fine) {
+  .wa-btn:hover { background: color-mix(in srgb, var(--wa-chip-text) 10%, transparent); }
+}
+.wa-btn:active { transform: scale(0.97); background: color-mix(in srgb, var(--wa-chip-text) 14%, transparent); }
+.wa-btn:disabled { opacity: .45; cursor: default; transform: none; }
 .wa-btn + .wa-btn { border-top: 1px solid var(--wa-divider); border-radius: 0; }
 
 /* Lista interactiva */
@@ -274,10 +285,15 @@
   border: 0; border-radius: var(--r-full);
   background: var(--wa-teal); color: #fff;
   cursor: pointer; display: grid; place-items: center;
-  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  transition: transform var(--dur-press) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out),
+              opacity var(--dur-fast) var(--ease-out);
 }
-.wa-send:hover { transform: scale(1.05); }
-.wa-send:disabled { opacity: .5; cursor: default; transform: none; }
+@media (hover: hover) and (pointer: fine) {
+  .wa-send:hover { background: color-mix(in srgb, #000 8%, var(--wa-teal)); }
+}
+.wa-send:active { transform: scale(0.92); }
+.wa-send:disabled { opacity: .45; cursor: default; transform: none; }
 
 /* Sugerencias de prueba */
 .wa-suggestions {
@@ -300,5 +316,10 @@
   font-size: var(--fs-xs);
   cursor: pointer;
   white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-press) var(--ease-out);
 }
-.wa-suggestion:hover { background: color-mix(in srgb, var(--wa-chip-text) 10%, var(--wa-chip)); }
+@media (hover: hover) and (pointer: fine) {
+  .wa-suggestion:hover { background: color-mix(in srgb, var(--wa-chip-text) 10%, var(--wa-chip)); }
+}
+.wa-suggestion:active { transform: scale(0.96); }

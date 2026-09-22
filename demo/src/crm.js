@@ -17,6 +17,9 @@ import {
   listarConversaciones, obtenerConversacion, suscribir,
   publicarMensaje, cambiarEstado, agregarNota, limpiarTodo
 } from './bus.js';
+// El agente escribe con el formato de WhatsApp (*negrita*). El CRM muestra
+// el mismo texto, así que lo renderiza igual en vez de enseñar los asteriscos.
+import { formatearTexto } from './ui.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -144,17 +147,25 @@ function renderConversacion() {
   if (!(c.mensajes || []).length) {
     thread.innerHTML = '<div class="thread-empty">Sin mensajes todavía.</div>';
   }
+  // Se agrupan los mensajes consecutivos del mismo autor: repetir la
+  // etiqueta en cada burbuja es ruido, y el cambio de autor es
+  // justamente lo que el ojo necesita ver.
+  let autorPrevio = null;
   for (const m of c.mensajes || []) {
+    const clave = m.autor + (m.privado ? ':nota' : '');
+    const cambio = clave !== autorPrevio;
+    autorPrevio = clave;
+
     const el = document.createElement('div');
-    el.className = `msg ${m.autor}${m.privado ? ' privado' : ''}`;
+    el.className = `msg ${m.autor}${m.privado ? ' privado' : ''}${cambio ? ' cambio-autor' : ''}`;
     const quien = m.privado ? '🔒 Nota privada'
       : m.autor === 'paciente' ? 'Paciente'
       : m.autor === 'bot' ? 'Sofía · asistente virtual'
       : 'Agente · Open Side';
     const tono = m.privado ? 'warn' : m.autor === 'bot' ? 'ai' : m.autor === 'humano' ? 'human' : 'muted';
     el.innerHTML = `
-      <div class="msg-meta"><span class="pill ${tono}">${escapar(quien)}</span><span>${hora(m.ts)}</span></div>
-      <div class="msg-bubble">${escapar(m.texto || '')}</div>`;
+      ${cambio ? `<div class="msg-meta"><span class="pill ${tono}">${escapar(quien)}</span><span>${hora(m.ts)}</span></div>` : ''}
+      <div class="msg-bubble" title="${hora(m.ts)}">${formatearTexto(m.texto || '')}</div>`;
     thread.appendChild(el);
   }
   requestAnimationFrame(() => { thread.scrollTop = thread.scrollHeight; });
@@ -176,7 +187,11 @@ function renderContexto(c) {
 
   const attr = (k, v, titulo) => `<div class="attr" ${titulo ? `title="${escapar(titulo)}"` : ''}>
       <span class="k">${k}</span>
-      <span class="v${v == null || v === '' ? ' empty' : ''}">${v == null || v === '' ? 'sin dato' : escapar(String(v))}</span>
+      <span class="v${v == null || v === '' ? ' empty' : ''}" title="${v == null ? '' : escapar(String(v))}">${v == null || v === '' ? 'sin dato' : escapar(String(v))}</span>
+    </div>`;
+  const attrMulti = (k, v) => `<div class="attr">
+      <span class="k">${k}</span>
+      <span class="v multi${v == null || v === '' ? ' empty' : ''}">${v == null || v === '' ? 'sin dato' : escapar(String(v))}</span>
     </div>`;
 
   const screening = conv.screening_rm_estado || 'pendiente';
@@ -215,12 +230,12 @@ function renderContexto(c) {
       ${attr('aseguradora', contacto.aseguradora)}
       ${attr('consentimiento', contacto.consentimiento_datos ? 'otorgado' : 'no otorgado',
              'Ley 81 de 2019 · el consentimiento queda registrado con fecha y hora')}
-      ${attr('consentimiento_ts', contacto.consentimiento_ts)}
+      ${attr('registrado', fechaLegible(contacto.consentimiento_ts))}
     </div>
 
     <div class="ctx-block">
       <h3>Conversación</h3>
-      ${attr('estudio_solicitado', conv.estudio_solicitado)}
+      ${attrMulti('estudio_solicitado', conv.estudio_solicitado)}
       ${attr('sede_preferida', conv.sede_preferida)}
       ${attr('requiere_contraste', conv.requiere_contraste == null ? null : String(conv.requiere_contraste))}
       ${attr('autorizacion_seguro', conv.autorizacion_seguro)}
@@ -388,6 +403,14 @@ function horaRelativa(ts) {
   if (s < 3600) return `${Math.floor(s / 60)} min`;
   if (s < 86400) return `${Math.floor(s / 3600)} h`;
   return `${Math.floor(s / 86400)} d`;
+}
+function fechaLegible(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  const dia = String(d.getDate()).padStart(2, '0');
+  const mes = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()];
+  return `${dia} ${mes} · ${hora(d.getTime())}`;
 }
 function etiquetaEstado(e) {
   return { pending: 'Atiende el agente virtual', open: 'La tiene una persona', resolved: 'Resuelta' }[e] || e;
