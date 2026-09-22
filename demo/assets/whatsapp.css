@@ -1,0 +1,304 @@
+/* ============================================================
+   Simulador de WhatsApp · réplica fiel para pruebas
+   ============================================================ */
+
+.phone {
+  width: 100%;
+  max-width: 420px;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--wa-chat-bg);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  box-shadow: var(--e-3);
+  border: 1px solid var(--surface-border);
+  position: relative;
+}
+
+/* ---------- Encabezado ---------- */
+.wa-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--wa-header);
+  color: var(--wa-text);
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--wa-divider);
+}
+.wa-back {
+  background: none; border: 0; cursor: pointer;
+  color: var(--wa-text-2); padding: var(--sp-1);
+  display: flex; align-items: center;
+}
+.wa-avatar {
+  width: 40px; height: 40px; border-radius: var(--r-full);
+  background: linear-gradient(135deg, var(--os-blue-600), var(--os-cyan-500));
+  display: grid; place-items: center;
+  color: #fff; font-weight: 700; font-size: var(--fs-sm);
+  flex: 0 0 auto;
+}
+.wa-title { flex: 1; min-width: 0; }
+.wa-title strong {
+  display: block; font-size: var(--fs-base); font-weight: 600;
+  color: var(--wa-text); line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wa-title span {
+  display: block; font-size: var(--fs-xs); color: var(--wa-text-2);
+  line-height: 1.3;
+}
+.wa-header-actions { display: flex; gap: var(--sp-1); color: var(--wa-text-2); }
+.wa-header-actions button {
+  background: none; border: 0; cursor: pointer; color: inherit;
+  padding: var(--sp-2); border-radius: var(--r-full);
+  display: flex; align-items: center;
+}
+.wa-header-actions button:hover { background: rgba(128,128,128,.14); }
+
+/* ---------- Hilo ---------- */
+.wa-thread {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-width: 0;
+  padding: var(--sp-3) var(--sp-3) var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scroll-behavior: smooth;
+  background-color: var(--wa-chat-bg);
+  /* Patrón sutil que evoca el fondo de WhatsApp sin usar su arte */
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(128,128,128,.045) 0 2px, transparent 2px),
+    radial-gradient(circle at 70% 65%, rgba(128,128,128,.035) 0 3px, transparent 3px);
+  background-size: 120px 120px, 180px 180px;
+}
+
+.wa-date {
+  align-self: center;
+  background: var(--wa-chip);
+  color: var(--wa-text-2);
+  font-size: var(--fs-xs);
+  padding: 5px var(--sp-3);
+  border-radius: var(--r-md);
+  box-shadow: var(--wa-shadow);
+  margin: var(--sp-2) 0;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+
+.wa-system {
+  align-self: center;
+  max-width: 88%;
+  text-align: center;
+  background: #FFF3C4;
+  color: #5A4300;
+  font-size: var(--fs-xs);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  box-shadow: var(--wa-shadow);
+  margin: var(--sp-2) 0;
+}
+:root[data-theme="dark"] .wa-system { background: #3A3018; color: #F0DFA8; }
+
+/* ---------- Burbujas ---------- */
+.wa-row { display: flex; width: 100%; margin-top: 2px; }
+.wa-row.in  { justify-content: flex-start; }
+.wa-row.out { justify-content: flex-end; }
+.wa-row.first { margin-top: var(--sp-2); }
+
+.wa-bubble {
+  position: relative;
+  max-width: 82%;
+  padding: 6px 9px 8px;
+  border-radius: 8px;
+  box-shadow: var(--wa-shadow);
+  font-size: 14.2px;
+  line-height: 1.42;
+  color: var(--wa-text);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  animation: bubble-in var(--dur-base) var(--ease);
+}
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateY(6px) scale(.98); }
+  to   { opacity: 1; transform: none; }
+}
+.wa-row.in  .wa-bubble { background: var(--wa-in-bubble);  border-top-left-radius: 8px; }
+.wa-row.out .wa-bubble { background: var(--wa-out-bubble); border-top-right-radius: 8px; }
+.wa-row.first.in  .wa-bubble { border-top-left-radius: 0; }
+.wa-row.first.out .wa-bubble { border-top-right-radius: 0; }
+
+/* Colita */
+.wa-row.first.in .wa-bubble::before,
+.wa-row.first.out .wa-bubble::before {
+  content: ""; position: absolute; top: 0; width: 8px; height: 13px;
+}
+.wa-row.first.in .wa-bubble::before {
+  left: -8px;
+  background: var(--wa-in-bubble);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+}
+.wa-row.first.out .wa-bubble::before {
+  right: -8px;
+  background: var(--wa-out-bubble);
+  clip-path: polygon(0 0, 0 100%, 100% 0);
+}
+
+.wa-bubble p { margin: 0 0 6px; }
+.wa-bubble p:last-of-type { margin-bottom: 0; }
+.wa-bubble strong { font-weight: 600; }
+.wa-bubble em { font-style: italic; }
+.wa-bubble a { color: var(--wa-link); }
+.wa-bubble ul { margin: 4px 0; padding-left: 18px; }
+.wa-bubble li { margin: 2px 0; }
+
+.wa-meta {
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--wa-text-2);
+  margin: 4px 0 -4px 8px;
+  user-select: none;
+}
+.wa-tick { width: 15px; height: 11px; display: inline-block; }
+.wa-tick.read { color: var(--wa-tick-read); }
+
+/* Etiqueta de bot dentro de la burbuja */
+.wa-bot-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--sem-ai);
+  background: color-mix(in srgb, var(--sem-ai) 12%, transparent);
+  padding: 1px 6px;
+  border-radius: var(--r-full);
+  margin-bottom: 4px;
+}
+.wa-bubble.is-human .wa-bot-tag { color: var(--sem-human); background: color-mix(in srgb, var(--sem-human) 14%, transparent); }
+
+/* ---------- Escribiendo ---------- */
+.wa-typing { display: flex; gap: 4px; padding: 4px 2px; align-items: center; }
+.wa-typing i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--wa-text-2); opacity: .5;
+  animation: dot 1.2s infinite var(--ease);
+}
+.wa-typing i:nth-child(2) { animation-delay: .18s; }
+.wa-typing i:nth-child(3) { animation-delay: .36s; }
+@keyframes dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: .45; }
+  30%           { transform: translateY(-4px); opacity: .9; }
+}
+
+/* ---------- Botones interactivos (quick replies) ---------- */
+.wa-buttons {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-top: 6px;
+  border-top: 1px solid var(--wa-divider);
+  padding-top: 4px;
+}
+.wa-btn {
+  background: none; border: 0; cursor: pointer;
+  color: var(--wa-chip-text);
+  font-size: 14px; font-weight: 500;
+  padding: 8px 4px;
+  border-radius: var(--r-sm);
+  text-align: center;
+  min-height: 36px;
+  transition: background var(--dur-fast) var(--ease);
+}
+.wa-btn:hover { background: color-mix(in srgb, var(--wa-chip-text) 10%, transparent); }
+.wa-btn:disabled { opacity: .45; cursor: default; }
+.wa-btn + .wa-btn { border-top: 1px solid var(--wa-divider); border-radius: 0; }
+
+/* Lista interactiva */
+.wa-list-btn {
+  width: 100%; margin-top: 6px; padding: 9px;
+  background: none; border: 0; border-top: 1px solid var(--wa-divider);
+  color: var(--wa-chip-text); font-weight: 500; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+
+/* Tarjeta de cita dentro de la burbuja */
+.wa-card {
+  background: color-mix(in srgb, var(--wa-text) 5%, transparent);
+  border-left: 3px solid var(--sem-success);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  margin: 6px 0;
+  font-size: 13.5px;
+}
+.wa-card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px var(--sp-3); }
+.wa-card dt { color: var(--wa-text-2); font-size: 12px; }
+.wa-card dd { margin: 0; font-weight: 500; }
+
+/* ---------- Composer ---------- */
+.wa-composer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--wa-panel);
+  border-top: 1px solid var(--wa-divider);
+}
+.wa-input-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: var(--wa-composer);
+  border-radius: var(--r-xl);
+  padding: 6px var(--sp-3);
+  box-shadow: var(--wa-shadow);
+}
+.wa-input {
+  flex: 1; min-width: 0; width: 100%;
+  border: 0; background: none; resize: none;
+  max-height: 96px; min-height: 22px;
+  font-size: 14.5px; line-height: 1.4; color: var(--wa-text);
+  outline: none;
+}
+.wa-input::placeholder { color: var(--wa-text-2); }
+.wa-send {
+  width: 42px; height: 42px; flex: 0 0 auto;
+  border: 0; border-radius: var(--r-full);
+  background: var(--wa-teal); color: #fff;
+  cursor: pointer; display: grid; place-items: center;
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.wa-send:hover { transform: scale(1.05); }
+.wa-send:disabled { opacity: .5; cursor: default; transform: none; }
+
+/* Sugerencias de prueba */
+.wa-suggestions {
+  flex: 0 0 auto;
+  display: flex; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3) 0;
+  overflow-x: auto;
+  min-width: 0;
+  background: var(--wa-panel);
+  scrollbar-width: none;
+}
+.wa-suggestions::-webkit-scrollbar { display: none; }
+.wa-suggestion {
+  flex: 0 0 auto;
+  background: var(--wa-chip);
+  color: var(--wa-chip-text);
+  border: 1px solid var(--wa-divider);
+  border-radius: var(--r-full);
+  padding: 5px var(--sp-3);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wa-suggestion:hover { background: color-mix(in srgb, var(--wa-chip-text) 10%, var(--wa-chip)); }

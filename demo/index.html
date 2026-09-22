@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sofía · Simulador de agente Open Side</title>
+<meta name="description" content="Banco de pruebas del agente conversacional de Open Side: simulador de WhatsApp, inspector del agente y vista de CRM.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/whatsapp.css">
+<link rel="stylesheet" href="assets/console.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231268B0'/><circle cx='50' cy='50' r='24' fill='none' stroke='%23fff' stroke-width='8'/><circle cx='50' cy='50' r='7' fill='%2312B5CB'/></svg>">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">OS</div>
+      <div class="brand-text">
+        <strong>Sofía · Agente conversacional</strong>
+        <span>Banco de pruebas · Open Side</span>
+      </div>
+    </div>
+    <span class="badge-demo">DEMO · datos ficticios</span>
+    <div class="topbar-spacer"></div>
+    <button class="ctl" id="theme" type="button">🌙 Oscuro</button>
+    <button class="ctl primary" id="reset" type="button">↺ Reiniciar conversación</button>
+  </header>
+
+  <main class="main">
+
+    <!-- ============ Simulador de WhatsApp ============ -->
+    <section class="stage" aria-label="Simulador de WhatsApp">
+      <span class="stage-label">Vista del paciente · WhatsApp</span>
+      <div class="phone-wrap">
+        <div class="phone">
+
+          <div class="wa-header">
+            <button class="wa-back" type="button" aria-label="Volver">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <div class="wa-avatar" aria-hidden="true">OS</div>
+            <div class="wa-title">
+              <strong>Open Side · Diagnóstico por imagen</strong>
+              <span id="wa-status">en línea · asistente virtual</span>
+            </div>
+            <div class="wa-header-actions">
+              <button type="button" aria-label="Videollamada">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+              </button>
+              <button type="button" aria-label="Llamar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 1.9.7 2.8a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.3-1.2a2 2 0 012.1-.5c.9.3 1.8.6 2.8.7a2 2 0 011.7 2z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="wa-thread" id="thread" role="log" aria-live="polite" aria-label="Conversación"></div>
+
+          <div class="wa-suggestions" id="suggestions" aria-label="Mensajes de prueba"></div>
+
+          <div class="wa-composer">
+            <div class="wa-input-wrap">
+              <textarea class="wa-input" id="input" rows="1" placeholder="Escribe un mensaje" aria-label="Escribe un mensaje"></textarea>
+            </div>
+            <button class="wa-send" id="send" type="button" aria-label="Enviar" disabled>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Consola del equipo ============ -->
+    <section class="inspector" aria-label="Consola del agente">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true"  data-panel="panel-traces"    id="tab-traces">Inspector del agente</button>
+        <button class="tab" role="tab" aria-selected="false" data-panel="panel-crm"       id="tab-crm">CRM · Chatwoot</button>
+        <button class="tab" role="tab" aria-selected="false" data-panel="panel-scenarios" id="tab-scen">Escenarios</button>
+        <button class="tab" role="tab" aria-selected="false" data-panel="panel-metrics"   id="tab-met">Métricas</button>
+        <button class="tab" role="tab" aria-selected="false" data-panel="panel-about"     id="tab-about">Acerca de</button>
+      </div>
+
+      <div class="tabpanel" id="panel-traces" role="tabpanel" aria-labelledby="tab-traces">
+        <div id="traces">
+          <div class="empty-state" id="traces-empty">
+            Envía un mensaje para ver la traza del agente: intención, herramientas, guardrails y decisión de escalamiento.
+          </div>
+        </div>
+      </div>
+
+      <div class="tabpanel" id="panel-crm" role="tabpanel" aria-labelledby="tab-crm" hidden>
+        <div id="crm"></div>
+      </div>
+
+      <div class="tabpanel" id="panel-scenarios" role="tabpanel" aria-labelledby="tab-scen" hidden>
+        <div class="crm-section">
+          <h3>Escenarios de prueba</h3>
+          <p style="font-size:13px;color:var(--text-secondary);margin:0 0 16px">
+            Cada escenario reinicia la conversación y la reproduce paso a paso.
+            Los marcados en rojo y ámbar son los casos bloqueantes de release.
+          </p>
+        </div>
+        <div class="scenarios" id="scenarios"></div>
+      </div>
+
+      <div class="tabpanel" id="panel-metrics" role="tabpanel" aria-labelledby="tab-met" hidden>
+        <div id="metrics"></div>
+      </div>
+
+      <div class="tabpanel" id="panel-about" role="tabpanel" aria-labelledby="tab-about" hidden>
+        <div class="crm-section">
+          <h3>Qué es esto</h3>
+          <div class="crm-card" style="font-size:13.5px;line-height:1.6">
+            <p style="margin-top:0">
+              Banco de pruebas del agente conversacional propuesto para
+              <strong>Open Side</strong>, centro de diagnóstico por imagen en Ciudad de Panamá.
+              A la izquierda, lo que ve el paciente en WhatsApp. A la derecha, lo que ve
+              el equipo: la traza interna del agente y el estado del CRM.
+            </p>
+            <p>
+              Esta página <strong>no es un canal real de Open Side</strong> y no envía mensajes
+              a nadie. Precios, convenios, preparaciones y disponibilidad son
+              <strong>datos ficticios</strong> de demostración.
+            </p>
+          </div>
+        </div>
+
+        <div class="crm-section">
+          <h3>Arquitectura que se está simulando</h3>
+          <div class="crm-card" style="font-size:13.5px;line-height:1.7">
+            <ol style="margin:0;padding-left:20px">
+              <li>Triage determinista <strong>antes</strong> del modelo (emergencias, handoff, diagnóstico)</li>
+              <li>Guardrails de entrada: enmascarado de PII y anti-inyección</li>
+              <li>Interpretación de intención (aquí por reglas; en producción, Claude con tool-calling)</li>
+              <li>Herramientas deterministas como única fuente de verdad</li>
+              <li>Precondiciones de seguridad que el modelo no puede sobreescribir</li>
+              <li>Guardrails de salida: anti-diagnóstico y anclaje a herramientas</li>
+              <li>Escalamiento con contexto: <code>pending → open</code> en Chatwoot</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="crm-section">
+          <h3>Documentación</h3>
+          <div class="crm-card">
+            <div class="crm-row"><span class="k">Investigación</span><span class="v"><a class="doc-link" href="../docs/01-investigacion.md">01-investigacion.md</a></span></div>
+            <div class="crm-row"><span class="k">Arquitectura</span><span class="v"><a class="doc-link" href="../docs/02-arquitectura.md">02-arquitectura.md</a></span></div>
+            <div class="crm-row"><span class="k">Sistema de diseño</span><span class="v"><a class="doc-link" href="../docs/03-design-system.md">03-design-system.md</a></span></div>
+            <div class="crm-row"><span class="k">Playbook del agente</span><span class="v"><a class="doc-link" href="../docs/04-agente-playbook.md">04-agente-playbook.md</a></span></div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+</div>
+
+<script type="module" src="src/app.js"></script>
+</body>
+</html>

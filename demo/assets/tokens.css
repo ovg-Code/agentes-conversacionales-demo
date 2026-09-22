@@ -1,0 +1,161 @@
+/* ============================================================
+   Open Side · Sistema de diseño · Tokens
+   Única fuente de verdad visual. Ver docs/03-design-system.md
+   ============================================================ */
+
+:root {
+  /* ---- Marca ---- */
+  --os-blue-900: #062A4A;
+  --os-blue-800: #0A3D6B;
+  --os-blue-700: #0E5490;
+  --os-blue-600: #1268B0;
+  --os-blue-500: #1A83D4;
+  --os-blue-400: #4DA3E3;
+  --os-blue-200: #C3E1F8;
+  --os-blue-100: #E6F2FC;
+  --os-cyan-500: #12B5CB;
+  --os-cyan-100: #DBF4F8;
+
+  /* ---- Semántico ---- */
+  --sem-success: #128C5A;
+  --sem-warning: #B26A00;
+  --sem-danger:  #C0322A;
+  --sem-info:    #1268B0;
+  --sem-ai:      #7A4FE0;
+  --sem-human:   #0E7C7B;
+
+  /* ---- Neutros ---- */
+  --n-0:   #FFFFFF;
+  --n-50:  #F7F9FB;
+  --n-100: #EDF1F5;
+  --n-200: #DDE4EB;
+  --n-300: #C2CDD8;
+  --n-400: #96A5B4;
+  --n-500: #6B7C8C;
+  --n-600: #4E5E6D;
+  --n-700: #37454F;
+  --n-800: #232E36;
+  --n-900: #141C22;
+
+  /* ---- Superficies (modo claro por defecto) ---- */
+  --surface-app:     var(--n-50);
+  --surface-panel:   var(--n-0);
+  --surface-sunken:  var(--n-100);
+  --surface-border:  var(--n-200);
+  --text-primary:    var(--n-900);
+  --text-secondary:  var(--n-500);
+  --text-inverse:    var(--n-0);
+
+  /* ---- Tipografía ---- */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --fs-xs: 12px;  --fs-sm: 13px;  --fs-base: 15px; --fs-md: 17px;
+  --fs-lg: 21px;  --fs-xl: 26px;  --fs-2xl: 33px;
+  --lh-tight: 1.25; --lh-body: 1.5;
+
+  /* ---- Espaciado ---- */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
+  --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px;
+
+  /* ---- Radios ---- */
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px; --r-full: 999px;
+
+  /* ---- Elevación ---- */
+  --e-1: 0 1px 2px rgba(20,28,34,.08);
+  --e-2: 0 2px 8px rgba(20,28,34,.10);
+  --e-3: 0 8px 24px rgba(20,28,34,.14);
+
+  /* ---- Movimiento ---- */
+  --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 320ms;
+  --ease: cubic-bezier(.4, 0, .2, 1);
+
+  /* ---- WhatsApp (solo simulador) · claro ---- */
+  --wa-chat-bg:      #E5DDD5;
+  --wa-panel:        #F0F2F5;
+  --wa-header:       #F0F2F5;
+  --wa-in-bubble:    #FFFFFF;
+  --wa-out-bubble:   #DCF8C6;
+  --wa-text:         #111B21;
+  --wa-text-2:       #667781;
+  --wa-green:        #25D366;
+  --wa-green-dark:   #075E54;
+  --wa-teal:         #008069;
+  --wa-link:         #027EB5;
+  --wa-tick-read:    #53BDEB;
+  --wa-composer:     #FFFFFF;
+  --wa-divider:      rgba(17,27,33,.08);
+  --wa-chip:         #FFFFFF;
+  --wa-chip-text:    #027EB5;
+  --wa-shadow:       0 1px .5px rgba(11,20,26,.13);
+}
+
+/* ============ Modo oscuro ============ */
+:root[data-theme="dark"] {
+  --surface-app:    #0F1620;
+  --surface-panel:  #161F2A;
+  --surface-sunken: #1D2834;
+  --surface-border: #2A3744;
+  --text-primary:   #E7EDF3;
+  --text-secondary: #94A5B4;
+  --text-inverse:   #0F1620;
+
+  --os-blue-600: #3D9BE0;
+  --os-blue-700: #59ACE8;
+  --os-blue-100: #16293B;
+  --os-blue-200: #1E3A52;
+  --os-cyan-100: #10313A;
+  --sem-success: #35C88B;
+  --sem-warning: #E0A44A;
+  --sem-danger:  #F0655B;
+  --sem-ai:      #A688F0;
+  --sem-human:   #3FB7B5;
+
+  --e-1: 0 1px 2px rgba(0,0,0,.35);
+  --e-2: 0 2px 8px rgba(0,0,0,.40);
+  --e-3: 0 8px 24px rgba(0,0,0,.50);
+
+  /* WhatsApp oscuro */
+  --wa-chat-bg:    #0B141A;
+  --wa-panel:      #111B21;
+  --wa-header:     #202C33;
+  --wa-in-bubble:  #202C33;
+  --wa-out-bubble: #005C4B;
+  --wa-text:       #E9EDEF;
+  --wa-text-2:     #8696A0;
+  --wa-link:       #53BDEB;
+  --wa-composer:   #202C33;
+  --wa-divider:    rgba(233,237,239,.10);
+  --wa-chip:       #202C33;
+  --wa-chip-text:  #53BDEB;
+  --wa-shadow:     0 1px .5px rgba(0,0,0,.30);
+}
+
+/* Reset mínimo */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+  color: var(--text-primary);
+  background: var(--surface-app);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible {
+  outline: 2px solid var(--os-cyan-500);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
