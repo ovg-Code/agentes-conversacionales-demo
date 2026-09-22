@@ -6,6 +6,7 @@ import { createAgent } from './agent.js';
 import { resetEstadoHerramientas } from './tools.js';
 import { ChatUI, renderTraza, renderMetricas, $, $$ } from './ui.js';
 import { HORARIO } from './kb.js';
+import { pintarIconos, icono } from './iconos.js';
 import { publicarConversacion, publicarMensaje, obtenerConversacion, suscribir } from './bus.js';
 
 /* ---------- Escenarios de prueba ---------- */
@@ -315,6 +316,7 @@ async function correrEscenario(esc) {
 
 /* ---------- Montaje ---------- */
 function montar() {
+  pintarIconos();
   // Sugerencias
   const sug = $('#suggestions');
   SUGERENCIAS.forEach(s => {
@@ -375,7 +377,8 @@ function montar() {
   const btnTema = $('#theme');
   const aplicarTema = t => {
     document.documentElement.setAttribute('data-theme', t);
-    btnTema.textContent = t === 'dark' ? '☀ Claro' : '🌙 Oscuro';
+    btnTema.innerHTML = icono(t === 'dark' ? 'sol' : 'luna', { size: 15 })
+      + `<span>${t === 'dark' ? 'Claro' : 'Oscuro'}</span>`;
     try { localStorage.setItem('os-theme', t); } catch (e) { /* almacenamiento no disponible */ }
   };
   let temaInicial = 'light';

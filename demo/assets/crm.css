@@ -97,6 +97,8 @@
   cursor: pointer;
   width: 100%; text-align: left;
   background: none;
+  border: 0;
+  border-bottom: 1px solid var(--surface-border);
   position: relative;
   transition: background-color var(--dur-fast) var(--ease-out),
               transform var(--dur-press) var(--ease-out);
@@ -808,3 +810,106 @@ button.tabla-fila:active { transform: scale(0.995); }
   font-family: var(--font-mono); font-size: 11px;
   color: var(--text-secondary); white-space: nowrap;
 }
+
+/* ============================================================
+   Ajuste a la línea gráfica de Chatwoot
+   ------------------------------------------------------------
+   Bordes de un paso (slate-5), superficies planas, radios
+   contenidos, y los pesos intermedios de Inter que evitan el
+   salto de 400 a 700.
+   ============================================================ */
+
+/* Los botones e iconos comparten línea de base. */
+.btn, .ctl, .menu-item, .composer-tab, .inbox-filter {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn > span, .ctl > span { line-height: 1; }
+.btn .ico, .ctl .ico { opacity: .85; }
+.caret { opacity: .5; margin-left: -2px; }
+
+.btn {
+  font-weight: var(--fw-medio);
+  border-color: var(--surface-border);
+  background: var(--surface-panel);
+  box-shadow: var(--e-1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { background: var(--surface-hover); border-color: var(--surface-border-fuerte); }
+}
+.btn.primary {
+  background: var(--acento); color: #fff;
+  border-color: transparent; box-shadow: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn.primary:hover { background: var(--acento-hover); }
+}
+.btn.ok {
+  background: var(--sem-success-bg); color: var(--sem-success);
+  border-color: rgb(var(--teal-6)); box-shadow: none;
+}
+.btn.warn {
+  background: var(--sem-warning-bg); color: var(--sem-warning);
+  border-color: rgb(var(--amber-6)); box-shadow: none;
+}
+
+/* Las píldoras de Chatwoot son sobrias: fondo del paso 3, texto del 11. */
+.pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-weight: var(--fw-medio); font-size: 11px;
+  padding: 2px 7px; border-radius: var(--r-sm);
+  letter-spacing: 0;
+}
+.pill .ico { opacity: .9; }
+.pill.ai     { color: var(--sem-ai);      background: var(--sem-ai-bg); }
+.pill.ok     { color: var(--sem-success); background: var(--sem-success-bg); }
+.pill.warn   { color: var(--sem-warning); background: var(--sem-warning-bg); }
+.pill.danger { color: var(--sem-danger);  background: var(--sem-danger-bg); }
+.pill.info   { color: var(--acento-texto); background: var(--acento-suave); }
+.pill.human  { color: var(--sem-human);   background: var(--sem-success-bg); }
+.pill.muted  { color: var(--text-secondary); background: var(--surface-sunken); }
+
+/* Encabezados de sección en mayúsculas pequeñas, como el panel de Chatwoot. */
+.ctx-block h3, .crm-section h3, .grafico h3, .bloque h3 {
+  font-size: 11px; font-weight: var(--fw-titulo);
+  letter-spacing: .04em; text-transform: uppercase;
+  color: var(--text-suave);
+}
+
+/* La bandeja: filas con separación de un paso, sin sombras. */
+.conv-row { border-bottom-color: var(--surface-border); }
+.conv-row[aria-current="true"] { background: var(--acento-suave); }
+.conv-row::before { background: var(--acento); }
+.conv-name { font-weight: var(--fw-fuerte); }
+.conv-row.no-leida .conv-name { font-weight: var(--fw-titulo); }
+.sin-leer { background: var(--acento); }
+
+/* El rail de Chatwoot es estrecho y sobrio. */
+.rail { background: var(--surface-panel); border-right-color: var(--surface-border); }
+.rail-btn[aria-current="true"] { background: var(--acento-suave); color: var(--acento-texto); }
+.rail-mark { background: var(--acento); border-radius: var(--r-md); }
+
+/* Espera e indicadores: el icono va pegado al número. */
+.espera { display: inline-flex; align-items: center; gap: 3px; }
+
+/* Avatares planos, sin degradado. */
+.conv-avatar { background: var(--acento); font-weight: var(--fw-titulo); }
+
+/* Campos de texto al estilo Chatwoot: borde de un paso, foco en el acento. */
+.campo, .composer textarea, .orden-wrap select, .crm-search {
+  border-color: var(--surface-border);
+  background: var(--surface-panel);
+  border-radius: var(--r-md);
+}
+.campo:focus, .composer textarea:focus { border-color: var(--acento); box-shadow: 0 0 0 3px var(--acento-suave); }
+
+/* Tablas: cabecera del paso 3, filas separadas por el 5. */
+.tabla { border-color: var(--surface-border); }
+.tabla-head { background: var(--surface-sunken); color: var(--text-suave); font-weight: var(--fw-titulo); }
+.tabla-fila { border-top-color: var(--surface-border); }
+
+/* Tarjetas de informes y ajustes. */
+.tile, .card, .cita-card, .menu-panel, .rapidas, .inspector, .ayuda-caja {
+  border-color: var(--surface-border);
+}
+.hero-num { color: var(--acento); font-weight: var(--fw-titulo); }
+.barra { background: var(--acento); }

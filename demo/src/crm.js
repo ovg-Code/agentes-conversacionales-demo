@@ -20,6 +20,7 @@ import {
   agentePorId, equipoPorId, prioridadPorId, tonoLabel, rellenar
 } from './crm-data.js';
 import { formatearTexto } from './ui.js';
+import { pintarIconos, icono } from './iconos.js';
 import { renderPacientes, renderInformes, renderAjustes } from './crm-secciones.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -141,11 +142,11 @@ function renderBandeja() {
         <div class="conv-preview">${escapar(preview)}</div>
         <div class="conv-tags">
           ${prio ? `<span class="pill ${prio.tono}">${prio.nombre}</span>` : ''}
-          ${estado === 'snoozed' ? `<span class="pill muted">💤 ${horaRelativaFutura(c.pospuestoHasta)}</span>` : ''}
+          ${estado === 'snoozed' ? `<span class="pill muted">${icono('campana-dormir', { size: 11 })}${horaRelativaFutura(c.pospuestoHasta)}</span>` : ''}
           ${agente ? `<span class="pill human">${escapar(agente.nombre.split(' ')[0])}</span>`
                    : (estado !== 'pending' ? '<span class="pill muted">sin asignar</span>' : '')}
           ${(c.crm?.labels || []).slice(0, 2).map(l => `<span class="pill ${tonoLabel(l)}">${escapar(l)}</span>`).join('')}
-          ${espera(c) ? `<span class="espera ${nivelEspera(c)}" title="Lleva esperando respuesta">⏱ ${espera(c)}</span>` : ''}
+          ${espera(c) ? `<span class="espera ${nivelEspera(c)}" title="Lleva esperando respuesta">${icono('reloj', { size: 11 })}${espera(c)}</span>` : ''}
         </div>
       </div>`;
     fila.addEventListener('click', () => seleccionar(c.id));
@@ -209,9 +210,9 @@ function renderAcciones(c, estado) {
   cont.innerHTML = '';
 
   if (estado === 'pending') {
-    cont.appendChild(boton('Tomar', 'primary', () => tomar(c.id), 'El bot deja de responder (A)'));
+    cont.appendChild(boton('Tomar', 'primary', () => tomar(c.id), 'El bot deja de responder (A)', 'usuario-mas'));
   } else {
-    if (c.asignadoA !== YO) cont.appendChild(boton('Asignarme', 'primary', () => tomar(c.id), 'Asignártela (A)'));
+    if (c.asignadoA !== YO) cont.appendChild(boton('Asignarme', 'primary', () => tomar(c.id), 'Asignártela (A)', 'usuario-mas'));
     cont.appendChild(menu('Asignar', AGENTES.map(a => ({
       label: a.nombre, detalle: a.rol, activo: c.asignadoA === a.id,
       fn: () => { actualizarCampos(c.id, { asignadoA: a.id }); nota(c.id, `Asignada a ${a.nombre}.`); refrescar(); }
@@ -227,19 +228,19 @@ function renderAcciones(c, estado) {
     cont.appendChild(menu('Posponer', POSPONER.map(o => ({
       label: o.nombre,
       fn: () => { posponer(c.id, Date.now() + o.minutos * 60000); nota(c.id, `Pospuesta ${o.nombre.toLowerCase()}.`); refrescar(); }
-    })), '💤'));
+    })), 'campana-dormir'));
   }
 
   if (estado === 'open' || estado === 'snoozed') {
-    cont.appendChild(boton('Devolver al bot', 'warn', () => {
+    cont.appendChild(botonIcono('Devolver al bot', 'warn', 'bot', () => {
       cambiarEstado(c.id, 'pending'); actualizarCampos(c.id, { asignadoA: null, pospuestoHasta: null });
       nota(c.id, 'Devuelta al agente virtual.'); refrescar();
     }));
   }
   if (estado !== 'resolved') {
-    cont.appendChild(boton('Resolver', 'ok', () => resolver(c.id), 'Marcar como resuelta (E)'));
+    cont.appendChild(boton('Resolver', 'ok', () => resolver(c.id), 'Marcar como resuelta (E)', 'check'));
   } else {
-    cont.appendChild(boton('Reabrir', '', () => { cambiarEstado(c.id, 'open'); refrescar(); }));
+    cont.appendChild(boton('Reabrir', '', () => { cambiarEstado(c.id, 'open'); refrescar(); }, null, 'rotar'));
   }
 }
 
@@ -268,13 +269,13 @@ function renderHilo(c, thread) {
 
     const el = document.createElement('div');
     el.className = `msg ${m.autor}${m.privado ? ' privado' : ''}${cambio ? ' cambio-autor' : ''}`;
-    const quien = m.privado ? '🔒 Nota privada'
+    const quien = m.privado ? 'Nota privada'
       : m.autor === 'paciente' ? 'Paciente'
       : m.autor === 'bot' ? 'Sofía · asistente virtual'
       : `${agentePorId(c.asignadoA)?.nombre || 'Agente'} · Open Side`;
     const tono = m.privado ? 'warn' : m.autor === 'bot' ? 'ai' : m.autor === 'humano' ? 'human' : 'muted';
     el.innerHTML = `
-      ${cambio ? `<div class="msg-meta"><span class="pill ${tono}">${escapar(quien)}</span><span>${hora(m.ts)}</span></div>` : ''}
+      ${cambio ? `<div class="msg-meta"><span class="pill ${tono}">${m.privado ? icono('nota', { size: 11 }) : ''}${escapar(quien)}</span><span>${hora(m.ts)}</span></div>` : ''}
       <div class="msg-bubble" title="${hora(m.ts)}">${formatearTexto(m.texto || '')}</div>`;
     thread.appendChild(el);
   }
@@ -315,7 +316,7 @@ function renderContexto(c, estado) {
       <div class="attr"><span class="k">asignada a</span><span class="v${agente ? '' : ' empty'}">${agente ? escapar(agente.nombre) : 'sin asignar'}</span></div>
       <div class="attr"><span class="k">prioridad</span><span class="v">${prio ? `<span class="pill ${prio.tono}">${prio.nombre}</span>` : '<span class="empty">sin definir</span>'}</span></div>
       <div class="attr"><span class="k">screening_rm</span><span class="v"><span class="pill ${tonoScreening}">${escapar(screening)}</span></span></div>
-      ${espera(c) ? `<div class="attr"><span class="k">esperando</span><span class="v"><span class="espera ${nivelEspera(c)}">⏱ ${espera(c)}</span></span></div>` : ''}
+      ${espera(c) ? `<div class="attr"><span class="k">esperando</span><span class="v"><span class="espera ${nivelEspera(c)}">${icono('reloj', { size: 11 })}${espera(c)}</span></span></div>` : ''}
       ${c.primeraRespuesta ? attr('1ª respuesta', duracion(c.primeraRespuesta - (c.mensajes?.[0]?.ts || c.primeraRespuesta))) : ''}
     </div>
 
@@ -532,13 +533,14 @@ function cerrarRapidas() {
 /* ============================================================
    Menús desplegables
    ============================================================ */
-function menu(etiqueta, opciones, icono) {
+function menu(etiqueta, opciones, iconoNombre) {
   const wrap = document.createElement('div');
   wrap.className = 'menu-wrap';
   const btn = document.createElement('button');
   btn.className = 'btn';
   btn.type = 'button';
-  btn.innerHTML = `${icono ? icono + ' ' : ''}${etiqueta} <span class="caret" aria-hidden="true">▾</span>`;
+  btn.innerHTML = (iconoNombre ? icono(iconoNombre, { size: 15 }) : '')
+    + `<span>${escapar(etiqueta)}</span>` + icono('chevron-abajo', { size: 13, clase: 'caret' });
   const panel = document.createElement('div');
   panel.className = 'menu-panel';
   panel.hidden = true;
@@ -561,12 +563,17 @@ function menu(etiqueta, opciones, icono) {
   return wrap;
 }
 
-function boton(txt, clase, fn, titulo) {
+function boton(txt, clase, fn, titulo, nombreIcono) {
   const b = document.createElement('button');
-  b.className = 'btn ' + clase; b.type = 'button'; b.textContent = txt;
+  b.className = 'btn ' + clase; b.type = 'button';
+  b.innerHTML = (nombreIcono ? icono(nombreIcono, { size: 15 }) : '') + `<span>${escapar(txt)}</span>`;
   if (titulo) b.title = titulo;
   b.addEventListener('click', fn);
   return b;
+}
+
+function botonIcono(txt, clase, nombreIcono, fn, titulo) {
+  return boton(txt, clase, fn, titulo, nombreIcono);
 }
 
 function cerrarMenus() {
@@ -676,6 +683,7 @@ function actualizarBadgeRail() {
    Montaje
    ============================================================ */
 function montar() {
+  pintarIconos();
   // Vistas de la bandeja
   $$('.inbox-filter').forEach(b => b.addEventListener('click', () => {
     vista = b.dataset.vista;
@@ -736,7 +744,8 @@ function montar() {
   const btnTema = $('#theme');
   const aplicar = t => {
     document.documentElement.setAttribute('data-theme', t);
-    btnTema.textContent = t === 'dark' ? '☀ Claro' : '🌙 Oscuro';
+    btnTema.innerHTML = icono(t === 'dark' ? 'sol' : 'luna', { size: 15 })
+      + `<span>${t === 'dark' ? 'Claro' : 'Oscuro'}</span>`;
     try { localStorage.setItem('os-theme', t); } catch (e) { /* sin almacenamiento */ }
   };
   let inicial = 'light';

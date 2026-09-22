@@ -1,211 +1,240 @@
 /* ============================================================
-   Open Side · Sistema de diseño · Tokens
-   Única fuente de verdad visual. Ver docs/03-design-system.md
+   Open Side · Sistema de diseño
+   ------------------------------------------------------------
+   La línea gráfica sigue a Chatwoot, que se apoya en Radix
+   Colors: escalas de 12 pasos donde cada paso tiene un papel
+   fijo (1-2 fondos · 3-5 fondos de componente · 6-8 bordes ·
+   9-10 sólidos · 11-12 texto). Los valores están tomados del
+   propio Chatwoot (app/javascript/.../woot.scss).
+
+   Escalas: slate (neutros) · iris (acento) · teal (éxito)
+            amber (aviso) · ruby (peligro)
    ============================================================ */
 
 :root {
-  /* ---- Marca ---- */
-  --os-blue-900: #062A4A;
-  --os-blue-800: #0A3D6B;
-  --os-blue-700: #0E5490;
-  --os-blue-600: #1268B0;
-  --os-blue-500: #1A83D4;
-  --os-blue-400: #4DA3E3;
-  --os-blue-200: #C3E1F8;
-  --os-blue-100: #E6F2FC;
-  --os-cyan-500: #12B5CB;
-  --os-cyan-100: #DBF4F8;
+  /* ---- Radix slate · claro ---- */
+  --slate-1:  252 252 253;  --slate-2:  249 249 251;  --slate-3:  240 240 243;
+  --slate-4:  232 232 236;  --slate-5:  224 225 230;  --slate-6:  217 217 224;
+  --slate-7:  205 206 214;  --slate-8:  185 187 198;  --slate-9:  139 141 152;
+  --slate-10: 128 131 141;  --slate-11:  96 100 108;  --slate-12:  28  32  36;
 
-  /* ---- Semántico ---- */
-  --sem-success: #128C5A;
-  --sem-warning: #B26A00;
-  --sem-danger:  #C0322A;
-  --sem-info:    #1268B0;
-  --sem-ai:      #7A4FE0;
-  --sem-human:   #0E7C7B;
+  /* ---- Radix iris · acento ---- */
+  --iris-1:  253 253 255;  --iris-2:  248 248 255;  --iris-3:  240 241 254;
+  --iris-4:  230 231 255;  --iris-5:  218 220 255;  --iris-6:  203 205 255;
+  --iris-7:  180 184 251;  --iris-8:  155 158 240;  --iris-9:   91  91 214;
+  --iris-10:  81  81 205;  --iris-11:  87  83 198;  --iris-12:  39  41  98;
 
-  /* ---- Neutros ---- */
-  --n-0:   #FFFFFF;
-  --n-50:  #F7F9FB;
-  --n-100: #EDF1F5;
-  --n-200: #DDE4EB;
-  --n-300: #C2CDD8;
-  --n-400: #96A5B4;
-  --n-500: #6B7C8C;
-  --n-600: #4E5E6D;
-  --n-700: #37454F;
-  --n-800: #232E36;
-  --n-900: #141C22;
+  /* ---- Radix teal · éxito ---- */
+  --teal-1: 250 254 253;  --teal-3: 224 248 243;  --teal-6: 142 226 213;
+  --teal-8:  83 185 171;  --teal-9:  18 165 148;  --teal-10: 13 155 138;
+  --teal-11:  0 133 115;  --teal-12: 13  61  56;
 
-  /* ---- Superficies (modo claro por defecto) ---- */
-  --surface-app:     var(--n-50);
-  --surface-panel:   var(--n-0);
-  --surface-sunken:  var(--n-100);
-  --surface-border:  var(--n-200);
-  --text-primary:    var(--n-900);
-  --text-secondary:  var(--n-500);
-  --text-inverse:    var(--n-0);
+  /* ---- Radix amber · aviso ---- */
+  --amber-1: 254 253 251;  --amber-3: 255 247 194;  --amber-6: 255 222 138;
+  --amber-8: 226 163  54;  --amber-9: 255 197  61;  --amber-10: 255 186 24;
+  --amber-11: 171 100   0;  --amber-12: 79  52  34;
 
-  /* ---- Tipografía ---- */
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  /* ---- Radix ruby · peligro ---- */
+  --ruby-1: 255 252 253;  --ruby-3: 254 234 237;  --ruby-6: 249 199 208;
+  --ruby-8: 229 146 163;  --ruby-9: 229  70 102;  --ruby-10: 220 59 93;
+  --ruby-11: 202  36  77;  --ruby-12: 100 23  43;
+
+  /* ---- Papeles semánticos ----
+     Se nombran por función, no por color: cambiar de escala es
+     cambiar estas líneas, no cada regla del proyecto. */
+  --surface-app:     rgb(var(--slate-2));
+  --surface-panel:   rgb(var(--slate-1));
+  --surface-sunken:  rgb(var(--slate-3));
+  --surface-hover:   rgb(var(--slate-4));
+  --surface-border:  rgb(var(--slate-5));
+  --surface-border-fuerte: rgb(var(--slate-7));
+  --text-primary:    rgb(var(--slate-12));
+  --text-secondary:  rgb(var(--slate-11));
+  --text-suave:      rgb(var(--slate-10));
+  --text-inverse:    rgb(var(--slate-1));
+
+  --acento:          rgb(var(--iris-9));
+  --acento-hover:    rgb(var(--iris-10));
+  --acento-texto:    rgb(var(--iris-11));
+  --acento-suave:    rgb(var(--iris-3));
+  --acento-borde:    rgb(var(--iris-6));
+
+  --sem-success:     rgb(var(--teal-11));
+  --sem-success-bg:  rgb(var(--teal-3));
+  --sem-warning:     rgb(var(--amber-11));
+  --sem-warning-bg:  rgb(var(--amber-3));
+  --sem-danger:      rgb(var(--ruby-11));
+  --sem-danger-bg:   rgb(var(--ruby-3));
+  --sem-ai:          rgb(var(--iris-11));
+  --sem-ai-bg:       rgb(var(--iris-3));
+  --sem-human:       rgb(var(--teal-11));
+
+  /* Alias de compatibilidad: reglas escritas contra los nombres previos.
+     Apuntan a la escala nueva, así que la línea gráfica es una sola. */
+  --n-0:   rgb(var(--slate-1));
+  --n-400: rgb(var(--slate-9));
+  --n-800: rgb(var(--slate-12));
+  --n-900: rgb(var(--slate-12));
+  --sem-info: var(--acento-texto);
+
+  /* Compatibilidad con reglas que aún nombran la marca */
+  --os-blue-600: var(--acento);
+  --os-blue-700: var(--acento-hover);
+  --os-blue-400: var(--acento-borde);
+  --os-blue-100: var(--acento-suave);
+  --os-cyan-500: rgb(var(--teal-9));
+
+  /* ---- Tipografía ----
+     Inter con los pesos intermedios que usa Chatwoot: 420 para
+     cuerpo, 500/520 para énfasis, 600 para títulos. Los pesos
+     variables evitan el salto brusco de 400 a 700. */
+  --font-sans: "Inter", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-  --fs-xs: 12px;  --fs-sm: 13px;  --fs-base: 15px; --fs-md: 17px;
-  --fs-lg: 21px;  --fs-xl: 26px;  --fs-2xl: 33px;
+  --fw-cuerpo: 420;
+  --fw-medio: 500;
+  --fw-fuerte: 560;
+  --fw-titulo: 600;
+  --fs-xs: 12px;  --fs-sm: 13px;  --fs-base: 14px; --fs-md: 16px;
+  --fs-lg: 20px;  --fs-xl: 24px;  --fs-2xl: 30px;
   --lh-tight: 1.25; --lh-body: 1.5;
 
   /* ---- Espaciado ---- */
   --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
   --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px;
 
-  /* ---- Radios ---- */
-  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px; --r-full: 999px;
+  /* ---- Radios · Chatwoot usa curvas contenidas ---- */
+  --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px; --r-full: 999px;
 
   /* ---- Elevación ---- */
-  --e-1: 0 1px 1px rgba(20,28,34,.04), 0 1px 2px rgba(20,28,34,.06);
-  --e-2: 0 1px 2px rgba(20,28,34,.05), 0 4px 12px -2px rgba(20,28,34,.09);
-  --e-3: 0 2px 4px rgba(20,28,34,.05), 0 12px 32px -6px rgba(20,28,34,.16);
+  --e-1: 0 1px 1px rgb(var(--slate-12) / .04), 0 1px 2px rgb(var(--slate-12) / .06);
+  --e-2: 0 1px 2px rgb(var(--slate-12) / .05), 0 4px 12px -2px rgb(var(--slate-12) / .09);
+  --e-3: 0 2px 4px rgb(var(--slate-12) / .05), 0 12px 32px -6px rgb(var(--slate-12) / .16);
 
   /* ---- Movimiento ----
-     Las curvas nativas de CSS son demasiado débiles: les falta el
-     acento que hace que una animación parezca intencionada. Estas son
-     variantes fuertes. Regla: nada de ease-in en UI — arranca lento
-     justo cuando el usuario más está mirando, y se siente pesado. */
-  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);      /* entradas y salidas */
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);     /* movimiento en pantalla */
-  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);      /* paneles, tipo iOS */
+     Curvas fuertes: las nativas de CSS carecen del acento que hace
+     que una animación parezca intencionada. Nada de ease-in en
+     interfaz: arranca lento justo cuando el usuario más mira. */
+  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --ease: var(--ease-out);
+  --dur-press:  110ms;
+  --dur-fast:   140ms;
+  --dur-base:   200ms;
+  --dur-panel:  260ms;
 
-  /* Ninguna animación de interfaz pasa de 300ms. */
-  --dur-press:  110ms;   /* respuesta al pulsar */
-  --dur-fast:   140ms;   /* hover, color */
-  --dur-base:   200ms;   /* entradas de elementos */
-  --dur-panel:  260ms;   /* paneles y burbujas */
-
-  /* ---- WhatsApp (solo simulador) · claro ---- */
-  --wa-chat-bg:      #E5DDD5;
-  --wa-panel:        #F0F2F5;
-  --wa-header:       #F0F2F5;
-  --wa-in-bubble:    #FFFFFF;
-  --wa-out-bubble:   #DCF8C6;
-  --wa-text:         #111B21;
-  --wa-text-2:       #667781;
-  --wa-green:        #25D366;
-  --wa-green-dark:   #075E54;
-  --wa-teal:         #008069;
-  --wa-link:         #027EB5;
-  --wa-tick-read:    #53BDEB;
-  --wa-composer:     #FFFFFF;
-  --wa-divider:      rgba(17,27,33,.08);
-  --wa-chip:         #FFFFFF;
-  --wa-chip-text:    #027EB5;
-  --wa-shadow:       0 1px .5px rgba(11,20,26,.13);
+  /* ---- WhatsApp (solo el simulador) ---- */
+  --wa-chat-bg:    #E5DDD5;  --wa-panel:      #F0F2F5;
+  --wa-header:     #F0F2F5;  --wa-in-bubble:  #FFFFFF;
+  --wa-out-bubble: #DCF8C6;  --wa-text:       #111B21;
+  --wa-text-2:     #667781;  --wa-green:      #25D366;
+  --wa-teal:       #008069;  --wa-link:       #027EB5;
+  --wa-tick-read:  #53BDEB;  --wa-composer:   #FFFFFF;
+  --wa-divider:    rgba(17,27,33,.08);
+  --wa-chip:       #FFFFFF;  --wa-chip-text:  #027EB5;
+  --wa-shadow:     0 1px .5px rgba(11,20,26,.13);
 }
 
-/* ============ Modo oscuro ============ */
-/* Se declara dos veces a propósito: por preferencia del sistema (salvo que
-   el usuario haya elegido claro a mano) y por el atributo que pone el
-   conmutador. Así no hay destello antes de que cargue el JS. */
+/* ============================================================
+   Modo oscuro · las escalas oscuras de Radix, no un volteo
+   ============================================================ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+}
+:root[data-theme="dark"] { color-scheme: dark; }
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --surface-app:    #0F1620;
-    --surface-panel:  #161F2A;
-    --surface-sunken: #1D2834;
-    --surface-border: #2A3744;
-    --text-primary:   #E7EDF3;
-    --text-secondary: #94A5B4;
-    --text-inverse:   #0F1620;
+    --slate-1:  17  17  19;  --slate-2:  24  25  27;  --slate-3:  33  34  37;
+    --slate-4:  39  42  45;  --slate-5:  46  49  53;  --slate-6:  54  58  63;
+    --slate-7:  67  72  78;  --slate-8:  90  97 105;  --slate-9: 105 110 119;
+    --slate-10:119 123 132;  --slate-11:176 180 186;  --slate-12:237 238 240;
 
-    --os-blue-600: #3D9BE0;
-    --os-blue-700: #59ACE8;
-    --os-blue-100: #16293B;
-    --os-blue-200: #1E3A52;
-    --os-cyan-100: #10313A;
-    --sem-success: #35C88B;
-    --sem-warning: #E0A44A;
-    --sem-danger:  #F0655B;
-    --sem-ai:      #A688F0;
-    --sem-human:   #3FB7B5;
+    --iris-1:  19  19  30;  --iris-2:  23  22  37;  --iris-3:  32  34  72;
+    --iris-4:  38  42 101;  --iris-6:  61  62 130;  --iris-8:  89  88 177;
+    --iris-9:  91  91 214;  --iris-10: 84 114 228;  --iris-11:158 177 255;
+    --iris-12:224 223 254;
 
-    --e-1: 0 1px 1px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.34);
-    --e-2: 0 1px 2px rgba(0,0,0,.30), 0 4px 14px -2px rgba(0,0,0,.45);
-    --e-3: 0 2px 6px rgba(0,0,0,.32), 0 14px 36px -8px rgba(0,0,0,.58);
+    --teal-3:  13  45  42;  --teal-6:  20  87  80;  --teal-8:  32 126 115;
+    --teal-9:  18 165 148;  --teal-10: 14 179 158;  --teal-11: 11 216 182;
 
-    --wa-chat-bg:    #0B141A;
-    --wa-panel:      #111B21;
-    --wa-header:     #202C33;
-    --wa-in-bubble:  #202C33;
-    --wa-out-bubble: #005C4B;
-    --wa-text:       #E9EDEF;
-    --wa-text-2:     #8696A0;
-    --wa-link:       #53BDEB;
-    --wa-composer:   #202C33;
-    --wa-divider:    rgba(233,237,239,.10);
-    --wa-chip:       #202C33;
-    --wa-chip-text:  #53BDEB;
+    --amber-3: 48  32   8;  --amber-6: 92  61   5;  --amber-8:143 100  36;
+    --amber-9:255 197  61;  --amber-10:255 214 10;  --amber-11:255 202  22;
+
+    --ruby-3:  58  20  30;  --ruby-6: 111  37  57;  --ruby-8: 179  68  90;
+    --ruby-9: 229  70 102;  --ruby-10:236  90 114;  --ruby-11:255 148 157;
+
+    --e-1: 0 1px 1px rgb(0 0 0 / .28), 0 1px 3px rgb(0 0 0 / .34);
+    --e-2: 0 1px 2px rgb(0 0 0 / .30), 0 4px 14px -2px rgb(0 0 0 / .45);
+    --e-3: 0 2px 6px rgb(0 0 0 / .32), 0 14px 36px -8px rgb(0 0 0 / .58);
+
+    --wa-chat-bg:    #0B141A;  --wa-panel:      #111B21;
+    --wa-header:     #202C33;  --wa-in-bubble:  #202C33;
+    --wa-out-bubble: #005C4B;  --wa-text:       #E9EDEF;
+    --wa-text-2:     #8696A0;  --wa-link:       #53BDEB;
+    --wa-composer:   #202C33;  --wa-divider:    rgba(233,237,239,.10);
+    --wa-chip:       #202C33;  --wa-chip-text:  #53BDEB;
     --wa-shadow:     0 1px .5px rgba(0,0,0,.30);
   }
 }
 
 :root[data-theme="dark"] {
-  --surface-app:    #0F1620;
-  --surface-panel:  #161F2A;
-  --surface-sunken: #1D2834;
-  --surface-border: #2A3744;
-  --text-primary:   #E7EDF3;
-  --text-secondary: #94A5B4;
-  --text-inverse:   #0F1620;
+  --slate-1:  17  17  19;  --slate-2:  24  25  27;  --slate-3:  33  34  37;
+  --slate-4:  39  42  45;  --slate-5:  46  49  53;  --slate-6:  54  58  63;
+  --slate-7:  67  72  78;  --slate-8:  90  97 105;  --slate-9: 105 110 119;
+  --slate-10:119 123 132;  --slate-11:176 180 186;  --slate-12:237 238 240;
 
-  --os-blue-600: #3D9BE0;
-  --os-blue-700: #59ACE8;
-  --os-blue-100: #16293B;
-  --os-blue-200: #1E3A52;
-  --os-cyan-100: #10313A;
-  --sem-success: #35C88B;
-  --sem-warning: #E0A44A;
-  --sem-danger:  #F0655B;
-  --sem-ai:      #A688F0;
-  --sem-human:   #3FB7B5;
+  --iris-1:  19  19  30;  --iris-2:  23  22  37;  --iris-3:  32  34  72;
+  --iris-4:  38  42 101;  --iris-6:  61  62 130;  --iris-8:  89  88 177;
+  --iris-9:  91  91 214;  --iris-10: 84 114 228;  --iris-11:158 177 255;
+  --iris-12:224 223 254;
 
-  --e-1: 0 1px 1px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.34);
-  --e-2: 0 1px 2px rgba(0,0,0,.30), 0 4px 14px -2px rgba(0,0,0,.45);
-  --e-3: 0 2px 6px rgba(0,0,0,.32), 0 14px 36px -8px rgba(0,0,0,.58);
+  --teal-3:  13  45  42;  --teal-6:  20  87  80;  --teal-8:  32 126 115;
+  --teal-9:  18 165 148;  --teal-10: 14 179 158;  --teal-11: 11 216 182;
 
-  /* WhatsApp oscuro */
-  --wa-chat-bg:    #0B141A;
-  --wa-panel:      #111B21;
-  --wa-header:     #202C33;
-  --wa-in-bubble:  #202C33;
-  --wa-out-bubble: #005C4B;
-  --wa-text:       #E9EDEF;
-  --wa-text-2:     #8696A0;
-  --wa-link:       #53BDEB;
-  --wa-composer:   #202C33;
-  --wa-divider:    rgba(233,237,239,.10);
-  --wa-chip:       #202C33;
-  --wa-chip-text:  #53BDEB;
+  --amber-3: 48  32   8;  --amber-6: 92  61   5;  --amber-8:143 100  36;
+  --amber-9:255 197  61;  --amber-10:255 214 10;  --amber-11:255 202  22;
+
+  --ruby-3:  58  20  30;  --ruby-6: 111  37  57;  --ruby-8: 179  68  90;
+  --ruby-9: 229  70 102;  --ruby-10:236  90 114;  --ruby-11:255 148 157;
+
+  --e-1: 0 1px 1px rgb(0 0 0 / .28), 0 1px 3px rgb(0 0 0 / .34);
+  --e-2: 0 1px 2px rgb(0 0 0 / .30), 0 4px 14px -2px rgb(0 0 0 / .45);
+  --e-3: 0 2px 6px rgb(0 0 0 / .32), 0 14px 36px -8px rgb(0 0 0 / .58);
+
+  --wa-chat-bg:    #0B141A;  --wa-panel:      #111B21;
+  --wa-header:     #202C33;  --wa-in-bubble:  #202C33;
+  --wa-out-bubble: #005C4B;  --wa-text:       #E9EDEF;
+  --wa-text-2:     #8696A0;  --wa-link:       #53BDEB;
+  --wa-composer:   #202C33;  --wa-divider:    rgba(233,237,239,.10);
+  --wa-chip:       #202C33;  --wa-chip-text:  #53BDEB;
   --wa-shadow:     0 1px .5px rgba(0,0,0,.30);
 }
 
-/* Reset mínimo */
+/* ============================================================
+   Base
+   ============================================================ */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
   margin: 0;
   font-family: var(--font-sans);
   font-size: var(--fs-base);
+  font-weight: var(--fw-cuerpo);
   line-height: var(--lh-body);
   color: var(--text-primary);
   background: var(--surface-app);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
 }
 button, input, textarea, select { font: inherit; color: inherit; }
 
-/* El atributo hidden tiene menos especificidad que cualquier clase que
-   defina display, así que un overlay oculto seguía capturando clics.
-   Esta regla lo zanja para todo el proyecto. */
+/* El atributo hidden tiene menos especificidad que cualquier clase con
+   display, así que un overlay oculto seguía capturando clics. */
 [hidden] { display: none !important; }
+
 :focus-visible {
-  outline: 2px solid var(--os-cyan-500);
+  outline: 2px solid var(--acento);
   outline-offset: 2px;
   border-radius: var(--r-sm);
 }
@@ -213,10 +242,12 @@ button, input, textarea, select { font: inherit; color: inherit; }
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
 }
-/* Movimiento reducido no significa cero movimiento: significa menos
-   movimiento y más suave. Se conservan opacidad y color, que ayudan a
-   entender qué cambió; se elimina el desplazamiento, que es lo que
-   provoca malestar. */
+
+/* Los iconos heredan el color del texto y se alinean con él. */
+.ico { display: block; flex: 0 0 auto; }
+
+/* Movimiento reducido: menos movimiento, no cero. Se conservan opacidad
+   y color, que ayudan a entender qué cambió; se quita el desplazamiento. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 1ms !important;
@@ -227,10 +258,5 @@ button, input, textarea, select { font: inherit; color: inherit; }
   }
 }
 
-/* Un solo lugar para el feedback al pulsar. Nada en el mundo real
-   ignora que lo están tocando. */
-@media (hover: hover) and (pointer: fine) {
-  .pressable:hover { filter: brightness(1.03); }
-}
 .pressable { transition: transform var(--dur-press) var(--ease-out); }
 .pressable:active { transform: scale(0.97); }
