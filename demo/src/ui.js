@@ -239,63 +239,6 @@ export function renderTraza(trace, contenedor) {
 }
 
 /* ============================================================
-   Panel CRM
-   ============================================================ */
-export function renderCRM(crm, contenedor) {
-  const etiquetaEstado = {
-    pending:  ['El bot está atendiendo', 'pending'],
-    open:     ['Escalado · en cola humana', 'open'],
-    resolved: ['Resuelto por el asistente', 'resolved']
-  }[crm.status];
-
-  const fila = (k, v) => `<div class="crm-row"><span class="k">${k}</span><span class="v${v ? '' : ' empty'}">${v ? escapar(String(v)) : 'sin dato'}</span></div>`;
-
-  let html = `<div class="status-banner ${etiquetaEstado[1]}">
-      <strong>status: ${crm.status}</strong> · ${etiquetaEstado[0]}
-    </div>`;
-
-  if (crm.labels.length) {
-    html += `<div class="crm-section"><h3>Labels</h3><div class="labels">` +
-      crm.labels.map(l => {
-        const tono = l === 'urgente' ? 'danger'
-          : l === 'escalado-humano' || l === 'screening-bloqueado' ? 'warn'
-          : l === 'resuelto-por-bot' ? 'ok' : 'info';
-        return `<span class="pill ${tono}">${l}</span>`;
-      }).join('') + `</div></div>`;
-  }
-
-  html += `<div class="crm-section"><h3>Contacto · custom attributes</h3><div class="crm-card">
-    ${fila('paciente_nombre', crm.contacto.paciente_nombre)}
-    ${fila('paciente_cedula', crm.contacto.paciente_cedula)}
-    ${fila('aseguradora', crm.contacto.aseguradora)}
-    ${fila('consentimiento_datos', crm.contacto.consentimiento_datos ? 'true' : 'false')}
-    ${fila('consentimiento_ts', crm.contacto.consentimiento_ts)}
-  </div></div>`;
-
-  const c = crm.conversacion;
-  html += `<div class="crm-section"><h3>Conversación · custom attributes</h3><div class="crm-card">
-    ${fila('estudio_solicitado', c.estudio_solicitado)}
-    ${fila('sede_preferida', c.sede_preferida)}
-    ${fila('requiere_contraste', c.requiere_contraste === null ? null : String(c.requiere_contraste))}
-    ${fila('screening_rm_estado', c.screening_rm_estado)}
-    ${fila('autorizacion_seguro', c.autorizacion_seguro)}
-    ${fila('cita_id', c.cita_id)}
-    ${fila('cita_fecha', c.cita_fecha)}
-    ${fila('fase_conversacion', c.fase)}
-  </div></div>`;
-
-  if (crm.nota_privada) {
-    html += `<div class="crm-section"><h3>Nota privada para el agente humano</h3>
-      <div class="note">
-        <div class="note-head">🔒 Solo visible para el equipo</div>
-        <pre>${escapar(crm.nota_privada)}</pre>
-      </div></div>`;
-  }
-
-  contenedor.innerHTML = html;
-}
-
-/* ============================================================
    Métricas
    ============================================================ */
 export function renderMetricas(m, contenedor) {

@@ -177,3 +177,45 @@ Lo que hay que cambiar en `server/`:
 4. **Filtro de `message_type`** para no responderse a sí mismo.
 5. El estado de sesión pasa a estar **enlazado al `conversation.id` de Chatwoot**, no a un `sessionId` propio.
 6. El panel "CRM · Chatwoot" del simulador queda como **maqueta de referencia**: el CRM real es Chatwoot.
+
+---
+
+## 9. Estado actual: Chatwoot levantado como referencia
+
+Chatwoot **v4.18.0 corre en este entorno** con el compose de producción (imagen `chatwoot/chatwoot:latest`, `pgvector/pgvector:pg16`, `redis:alpine`):
+
+```
+$ curl -s localhost:3000/api
+{"version":"4.18.0","queue_services":"ok","data_services":"ok"}
+```
+
+### Tropiezo a documentar
+
+`docker-compose.production.yaml` trae `POSTGRES_PASSWORD=` **vacío y hardcodeado**, y eso gana sobre el `.env`. Postgres arranca en bucle con:
+
+```
+Error: Database is uninitialized and superuser password is not specified.
+```
+
+Hay que darle valor en el propio compose, no solo en `.env`.
+
+### Qué miramos de Chatwoot
+
+No vamos a desplegar Chatwoot como producto final: **haremos nuestra propia versión**. Lo que se toma de él es el diseño probado:
+
+| De Chatwoot | Qué adoptamos |
+|---|---|
+| Ciclo `pending → open → resolved` | Tal cual: es exactamente el modelo bot ⇄ humano que necesitamos |
+| Notas privadas en el hilo | Tal cual: es el vehículo del handoff |
+| Custom attributes de contacto y conversación | Tal cual, con los campos clínicos de Open Side |
+| Labels para enrutamiento y reportería | Tal cual |
+| Bandeja de tres columnas | La estructura; el diseño visual es nuestro |
+| Fail-safe: si el bot falla, la conversación pasa sola a `open` | **Imprescindible.** Ningún paciente se queda sin respuesta porque el agente esté caído |
+| Firma HMAC sobre `"{ts}.{body}"` + id de entrega | El patrón de webhook firmado e idempotente |
+| Timeout de 5 s en el webhook | La lección: **responder rápido y procesar en segundo plano** |
+
+### Nuestro CRM
+
+`demo/crm.html` es la primera versión propia: bandeja con filtros por estado y contadores, hilo con distinción visual entre paciente / agente virtual / persona, notas privadas, panel de custom attributes y acciones de tomar, devolver al bot y resolver.
+
+Hoy se alimenta del bus local (`demo/src/bus.js`). El siguiente paso es sustituir ese bus por la API real —la de Chatwoot mientras lo usemos, o la nuestra cuando la tengamos—, sin tocar la interfaz: el CRM ya está escrito contra un modelo de datos, no contra un transporte.

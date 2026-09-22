@@ -31,8 +31,10 @@ El LLM interpreta intención y selecciona herramientas. Cupos, precios, cobertur
 | [`docs/03-design-system.md`](docs/03-design-system.md) | Tokens de color/tipografía/espaciado, UI del paciente (WhatsApp), UI del equipo (consola), accesibilidad y **diseño conversacional**: persona, vocabulario, estructura de turno, manejo de error. |
 | [`docs/04-agente-playbook.md`](docs/04-agente-playbook.md) | Prompt de sistema listo para producción, catálogo de intenciones, esquemas JSON de herramientas, guiones de consentimiento y emergencia, 15 casos de prueba. |
 | [`docs/05-agente-ia.md`](docs/05-agente-ia.md) | **El agente real**: decisiones de API (modelo, thinking, effort, `strict`, fallbacks, caché), las 12 herramientas, las precondiciones de servidor, privacidad y qué falta para producción. |
+| [`docs/06-integracion-chatwoot.md`](docs/06-integracion-chatwoot.md) | El contrato real de Chatwoot, extraído de su código fuente (v4.18.0): cómo firma los webhooks, el límite de 5 s, el fail-safe que escala solo, los eventos y los endpoints del handoff. |
 | [`server/`](server/) | El agente de IA: Claude con tool-calling. |
-| [`demo/`](demo/) | El simulador y el motor de reglas de respaldo. |
+| [`demo/index.html`](demo/) | El chat: simulador de WhatsApp + inspector del agente. |
+| [`demo/crm.html`](demo/) | El CRM: la bandeja del equipo humano. |
 
 ---
 
@@ -52,14 +54,23 @@ También puedes abrir solo el frontend, sin backend:
 cd demo && python3 -m http.server 8000
 ```
 
-**Izquierda:** lo que ve el paciente — réplica de WhatsApp con burbujas, colitas, checks de leído, indicador de escritura, botones de respuesta rápida, modo claro y oscuro.
+### Dos aplicaciones, no una
 
-**Derecha:** lo que ve el equipo —
+El chat y el CRM son cosas distintas y viven separadas:
 
-- **Inspector del agente** · por cada turno: intención + confianza, si el triage determinista disparó, cada llamada a herramienta con argumentos, resultado y latencia, qué guardrails se evaluaron y la decisión de escalamiento.
-- **CRM · Chatwoot** · el contacto y la conversación como *custom attributes*, labels, estado `pending`/`open`/`resolved` y la **nota privada** que recibe el agente humano en un handoff.
-- **Escenarios** · 10 conversaciones reproducibles con un clic, incluidos los casos bloqueantes de release.
-- **Métricas** · turnos, herramientas, latencia, escalamientos y **mensajes por resolución** (la métrica que importa bajo el cobro per-message de WhatsApp).
+| | `index.html` — **el chat** | `crm.html` — **el CRM** |
+|---|---|---|
+| Quién lo usa | el paciente | el equipo de Open Side |
+| Qué muestra | réplica de WhatsApp: burbujas, colitas, checks de leído, indicador de escritura, quick replies | bandeja de tres columnas: conversaciones, hilo, datos del paciente |
+| Extra | inspector con la traza del agente, escenarios y métricas | notas privadas, labels, custom attributes, tomar/devolver/resolver |
+
+Se comunican por `demo/src/bus.js`, que hace en local lo que en producción hace el webhook de Chatwoot. Ábrelas en dos pestañas y pruébalo:
+
+1. Escribe en el chat → la conversación aparece en el CRM en vivo, en estado `pending` (la atiende el bot).
+2. Pulsa **Tomar conversación** → el chat avisa al paciente y el bot deja de responder.
+3. Responde desde el CRM → llega al chat como mensaje de una persona, con su propia identidad visual.
+4. Cambia a **Nota privada** → queda en el CRM y **no llega al paciente**.
+5. **Devolver al bot** → el agente virtual retoma.
 
 ### Escenarios incluidos
 
@@ -108,9 +119,25 @@ demo/
   src/tools.js   · herramientas deterministas (precios, cupos, screening, escalamiento)
   src/agent.js   · motor de reglas de respaldo, misma arquitectura sin modelo
   src/ui.js      · render del chat y del inspector
-  src/app.js     · wiring, escenarios y detección de modo
+  src/app.js     · wiring del chat, escenarios y detección de modo
+  src/bus.js     · canal entre el chat y el CRM (sustituto local del webhook)
+  src/crm.js     · el CRM: bandeja, hilo, notas privadas, cambios de estado
   tests.mjs      · 16 casos del motor de reglas
 ```
+
+### Sobre Chatwoot
+
+Chatwoot (MIT, Rails 7.2 + Vue 3) es la **referencia**: se clona y se levanta para estudiar cómo resuelve la bandeja, el modelo de datos y el ciclo `pending → open → resolved`. El CRM de este repo es **nuestra propia versión**, con el mismo modelo de estados pero código propio y la marca de Open Side.
+
+```bash
+git clone --depth 1 https://github.com/chatwoot/chatwoot.git
+cd chatwoot && cp .env.example .env     # SECRET_KEY_BASE y POSTGRES_PASSWORD
+docker compose -f docker-compose.production.yaml up -d postgres redis
+docker compose -f docker-compose.production.yaml run --rm rails bundle exec rails db:chatwoot_prepare
+docker compose -f docker-compose.production.yaml up -d      # localhost:3000
+```
+
+⚠ El `docker-compose.production.yaml` trae `POSTGRES_PASSWORD=` vacío y **sobreescribe el `.env`**: hay que ponerle valor en el propio compose o postgres reinicia en bucle.
 
 **El modelo entiende; el ejecutor decide.** Tres precondiciones se evalúan contra el estado del servidor, no contra lo que el modelo afirme:
 

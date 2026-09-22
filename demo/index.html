@@ -27,6 +27,7 @@
     <span class="badge-demo">DEMO · datos ficticios</span>
     <span class="pill muted" id="mode-badge" title="Detectando modo…">detectando…</span>
     <div class="topbar-spacer"></div>
+    <a class="ctl" href="crm.html" title="Abrir el CRM: la bandeja del equipo humano">🗂 Abrir CRM</a>
     <button class="ctl" id="theme" type="button">🌙 Oscuro</button>
     <button class="ctl primary" id="reset" type="button">↺ Reiniciar conversación</button>
   </header>
@@ -79,7 +80,6 @@
     <section class="inspector" aria-label="Consola del agente">
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" aria-selected="true"  data-panel="panel-traces"    id="tab-traces">Inspector del agente</button>
-        <button class="tab" role="tab" aria-selected="false" data-panel="panel-crm"       id="tab-crm">CRM · Chatwoot</button>
         <button class="tab" role="tab" aria-selected="false" data-panel="panel-scenarios" id="tab-scen">Escenarios</button>
         <button class="tab" role="tab" aria-selected="false" data-panel="panel-metrics"   id="tab-met">Métricas</button>
         <button class="tab" role="tab" aria-selected="false" data-panel="panel-about"     id="tab-about">Acerca de</button>
@@ -91,10 +91,6 @@
             Envía un mensaje para ver la traza del agente: intención, herramientas, guardrails y decisión de escalamiento.
           </div>
         </div>
-      </div>
-
-      <div class="tabpanel" id="panel-crm" role="tabpanel" aria-labelledby="tab-crm" hidden>
-        <div id="crm"></div>
       </div>
 
       <div class="tabpanel" id="panel-scenarios" role="tabpanel" aria-labelledby="tab-scen" hidden>
@@ -119,8 +115,9 @@
             <p style="margin-top:0">
               Banco de pruebas del agente conversacional propuesto para
               <strong>Open Side</strong>, centro de diagnóstico por imagen en Ciudad de Panamá.
-              A la izquierda, lo que ve el paciente en WhatsApp. A la derecha, lo que ve
-              el equipo: la traza interna del agente y el estado del CRM.
+              Esta página es el <strong>chat</strong>: lo que ve el paciente en WhatsApp, más el
+              inspector con la traza interna del agente. El <strong>CRM</strong> —la bandeja del
+              equipo humano— es una aplicación aparte, en <a href="crm.html">crm.html</a>.
             </p>
             <p>
               Esta página <strong>no es un canal real de Open Side</strong> y no envía mensajes

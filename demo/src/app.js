@@ -4,8 +4,9 @@
 
 import { createAgent } from './agent.js';
 import { resetEstadoHerramientas } from './tools.js';
-import { ChatUI, renderTraza, renderCRM, renderMetricas, $, $$ } from './ui.js';
+import { ChatUI, renderTraza, renderMetricas, $, $$ } from './ui.js';
 import { HORARIO } from './kb.js';
+import { publicarConversacion, publicarMensaje, obtenerConversacion, suscribir } from './bus.js';
 
 /* ---------- Escenarios de prueba ---------- */
 const ESCENARIOS = [
@@ -165,10 +166,13 @@ async function enviar(entrada) {
     metricas.escalamientos++;
   }
 
+  // El CRM es otra aplicación: se entera por el bus, como se enteraría
+  // por el webhook de Chatwoot en producción.
+  sincronizarConCRM(texto, res);
+
   // Inspector
   renderTraza(res.trace, $('#traces'));
   $('#traces-empty') && $('#traces-empty').remove();
-  renderCRM(res.crm, $('#crm'));
   metricas.tools += res.trace.tools.length;
   res.trace.tools.forEach(t => metricas.latencias.push(t.latencia));
   metricas.guardrailsActivados += res.trace.guardrails.filter(g => /disparó|enmascarados|neutralizado|BLOQUE|ALERTA/.test(g.resultado)).length;
@@ -177,6 +181,49 @@ async function enviar(entrada) {
   ocupado = false;
   actualizarComposer();
   $('#input').focus();
+}
+
+function sincronizarConCRM(textoPaciente, res) {
+  const existente = obtenerConversacion(sessionId);
+  const mensajes = existente ? [...existente.mensajes] : [];
+  mensajes.push({ id: 'p' + Date.now(), ts: Date.now(), autor: 'paciente', texto: textoPaciente });
+  for (const m of res.mensajes) {
+    if (m && m.text) mensajes.push({ id: 'b' + Date.now() + Math.random().toString(36).slice(2, 5), ts: Date.now(), autor: 'bot', texto: m.text });
+  }
+  if (res.crm && res.crm.nota_privada && (!existente || !existente.notaPublicada)) {
+    mensajes.push({ id: 'n' + Date.now(), ts: Date.now(), autor: 'bot', texto: res.crm.nota_privada, privado: true });
+  }
+  publicarConversacion({
+    id: sessionId,
+    contacto: { nombre: res.crm?.contacto?.paciente_nombre || null, telefono: '+507 6480-0336' },
+    crm: res.crm,
+    mensajes,
+    notaPublicada: Boolean(res.crm && res.crm.nota_privada),
+    modo: modo.ia ? 'ia' : 'reglas'
+  });
+}
+
+/* El equipo humano responde desde el CRM: el paciente lo recibe aquí. */
+function escucharAlCRM() {
+  suscribir(ev => {
+    if (ev.tipo === 'mensaje_nuevo' && ev.idConversacion === sessionId) {
+      const m = ev.mensaje;
+      if (m.autor === 'humano' && !m.privado) {
+        chat.mensaje('in', { text: m.texto }, { esHumano: true });
+      }
+    }
+    if (ev.tipo === 'estado_cambiado' && ev.idConversacion === sessionId) {
+      if (ev.estado === 'open' && ev.anterior !== 'open') {
+        chat.aviso('👤 Un agente de Open Side tomó la conversación. El asistente virtual deja de responder.');
+      }
+      if (ev.estado === 'pending' && ev.anterior === 'open') {
+        chat.aviso('🤖 El asistente virtual retomó la conversación.');
+      }
+      if (ev.estado === 'resolved') {
+        chat.aviso('✅ Conversación marcada como resuelta por el equipo.');
+      }
+    }
+  });
 }
 
 function actualizarMetricas() {
@@ -241,7 +288,6 @@ function reiniciar() {
   $('#traces').innerHTML = '<div class="empty-state" id="traces-empty">Envía un mensaje para ver la traza del agente: intención, herramientas, guardrails y decisión de escalamiento.</div>';
   Object.assign(metricas, { turnos: 0, mensajesBot: 0, tools: 0, latencias: [], escalamientos: 0, guardrailsActivados: 0 });
   actualizarMetricas();
-  renderCRM(agente.snapshotCRM(), $('#crm'));
   chat.divisorFecha('hoy');
   chat.aviso('Simulación de WhatsApp para pruebas internas. No es un canal real de Open Side y los datos son ficticios.');
 }
@@ -342,6 +388,7 @@ function montar() {
 
   reiniciar();
   detectarModo();
+  escucharAlCRM();
 }
 
 function dentroHorarioAhora() {

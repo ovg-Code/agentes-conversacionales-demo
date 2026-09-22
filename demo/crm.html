@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CRM · Open Side</title>
+<meta name="description" content="Bandeja de conversaciones de Open Side: el agente virtual atiende, el equipo humano toma el control cuando hace falta.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/console.css">
+<link rel="stylesheet" href="assets/crm.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230E7C7B'/><rect x='24' y='30' width='52' height='10' rx='5' fill='%23fff'/><rect x='24' y='48' width='52' height='10' rx='5' fill='%23fff' opacity='.7'/><rect x='24' y='66' width='32' height='10' rx='5' fill='%23fff' opacity='.45'/></svg>">
+</head>
+<body>
+<div class="crm-app">
+
+  <header class="crm-top">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">OS</div>
+      <div class="brand-text">
+        <strong>CRM · Open Side</strong>
+        <span>Bandeja de conversaciones</span>
+      </div>
+    </div>
+
+    <span class="badge-demo">DEMO · datos ficticios</span>
+
+    <div class="crm-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="color:var(--text-secondary)"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="search" id="buscar" placeholder="Buscar por nombre, estudio o cédula" aria-label="Buscar conversaciones">
+    </div>
+
+    <div class="spacer"></div>
+    <a class="ctl" href="index.html" title="Abrir el simulador de WhatsApp en esta pestaña">💬 Simulador de chat</a>
+    <button class="ctl" id="theme" type="button">🌙 Oscuro</button>
+  </header>
+
+  <main class="crm-main">
+
+    <!-- ============ Bandeja ============ -->
+    <section class="crm-col" aria-label="Bandeja de entrada">
+      <div class="inbox-filters" role="tablist">
+        <button class="inbox-filter" role="tab" aria-selected="true"  data-filtro="todas">
+          <span class="count" id="c-todas">0</span>Todas</button>
+        <button class="inbox-filter" role="tab" aria-selected="false" data-filtro="pending">
+          <span class="count" id="c-pending">0</span>Bot</button>
+        <button class="inbox-filter" role="tab" aria-selected="false" data-filtro="open">
+          <span class="count" id="c-open">0</span>Humano</button>
+        <button class="inbox-filter" role="tab" aria-selected="false" data-filtro="resolved">
+          <span class="count" id="c-resolved">0</span>Resueltas</button>
+      </div>
+      <div class="inbox-list" id="lista" role="list"></div>
+    </section>
+
+    <!-- ============ Conversación ============ -->
+    <section class="crm-col" aria-label="Conversación">
+      <div class="conv-header" id="conv-header" hidden>
+        <div class="conv-avatar" id="conv-avatar" aria-hidden="true">—</div>
+        <div class="who">
+          <strong id="conv-nombre">—</strong>
+          <span id="conv-sub">—</span>
+        </div>
+        <div class="conv-actions" id="conv-actions"></div>
+      </div>
+
+      <div class="thread" id="thread">
+        <div class="thread-empty" id="thread-empty">
+          <p><strong>Ninguna conversación seleccionada.</strong></p>
+          <p>Abre el <a href="index.html">simulador de chat</a> en otra pestaña y escribe un mensaje: la conversación aparecerá aquí en vivo, igual que llegaría desde WhatsApp.</p>
+        </div>
+      </div>
+
+      <div class="composer" id="composer" hidden>
+        <div class="composer-tabs" role="tablist">
+          <button class="composer-tab" role="tab" aria-selected="true"  data-modo="responder">Responder al paciente</button>
+          <button class="composer-tab nota" role="tab" aria-selected="false" data-modo="nota">Nota privada</button>
+        </div>
+        <div class="composer-body">
+          <textarea id="composer-texto" rows="1" placeholder="Escribe tu respuesta…" aria-label="Mensaje"></textarea>
+          <button class="btn primary" id="enviar" type="button">Enviar</button>
+        </div>
+        <div class="composer-hint" id="composer-hint">
+          El paciente recibirá este mensaje en WhatsApp. Al responder, la conversación pasa a <strong>open</strong> y el bot deja de contestar.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Contexto ============ -->
+    <aside class="crm-col" aria-label="Datos del paciente">
+      <div class="ctx" id="ctx">
+        <div class="thread-empty">Selecciona una conversación para ver los datos del paciente.</div>
+      </div>
+    </aside>
+
+  </main>
+</div>
+
+<script type="module" src="src/crm.js"></script>
+</body>
+</html>
