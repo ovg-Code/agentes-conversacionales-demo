@@ -259,3 +259,40 @@ El panel de ayuda usaba `hidden`, pero `.ayuda { display: grid }` gana en especi
 - Informes: carga por agente, tiempos medios, volumen por label
 - Búsqueda dentro de la conversación
 - Persistencia real: hoy todo vive en el bus local
+
+---
+
+## 11. Tercera tanda: navegación y secciones
+
+Faltaba lo más visible: **la sidebar**. Chatwoot organiza el producto en secciones tras un rail de iconos, y sin eso el CRM era una sola pantalla suelta.
+
+### El rail
+
+Cuatro secciones, con badge de no leídos sobre Conversaciones y el avatar del agente abajo. Las etiquetas aparecen al pasar el ratón, sin robarle sitio al icono.
+
+| Sección | Qué hace |
+|---|---|
+| **Conversaciones** | La bandeja de siempre |
+| **Pacientes** | Agrupa las conversaciones por cédula o teléfono: una fila por persona, con su historial y sus citas. Al hacer clic, abre su conversación |
+| **Informes** | Métricas calculadas sobre las conversaciones reales |
+| **Ajustes** | Equipo, equipos de enrutamiento, labels y respuestas rápidas |
+
+### Los informes, hechos con método
+
+El panel se construyó siguiendo la skill de visualización, no a ojo:
+
+- **La forma antes que el color.** La tasa de contención es la cifra que decide si el agente aporta, así que va sola como cifra principal. Los otros cinco números son *stat tiles*, no un gráfico de barras de cinco barras. El estado de la bandeja es parte-a-todo → barra apilada horizontal. Volumen por label y carga por agente son magnitud por categoría → barras horizontales de **una sola serie, un solo tono**.
+- **La paleta se validó con el script**, no razonando sobre ella. La primera propuesta **falló**: el gris de "pospuestas" no llegaba al mínimo de croma (leía como gris) ni al contraste de 3:1, y verde ↔ ámbar quedaban a ΔE 7.6 en protanopia. Iterando salieron dos paletas que pasan las seis comprobaciones:
+
+  | Modo | Agente virtual | Con una persona | Resueltas | Pospuestas |
+  |---|---|---|---|---|
+  | Claro | `#7A4FE0` | `#C9821B` | `#0B6E47` | `#5E78C4` |
+  | Oscuro | `#9C7EEC` | `#C9821B` | `#23A472` | `#5E78C4` |
+
+  El modo oscuro tiene **sus propios pasos**, no un volteo automático: el verde claro (`#0B6E47`) caía fuera de la banda de luminosidad contra la superficie oscura.
+- **La identidad nunca es solo color**: leyenda siempre presente con el número al lado, y `aria-label` con los valores en la barra apilada.
+- **Especificaciones de marca**: barras de 14 px con extremo redondeado de 4 px y base cuadrada, separación de 2 px en el color de la superficie entre segmentos apilados, y la cifra principal con cifras proporcionales (las tabulares se ven sueltas a ese tamaño).
+
+### Un arreglo que hizo falta
+
+El simulador ponía el mismo teléfono a todas las sesiones, así que Pacientes fundía todas las conversaciones en una sola persona. Ahora cada sesión genera su propio número, y el agrupamiento se ve de verdad. En la tabla, el teléfono va bajo el nombre: muchas veces es lo único que distingue a dos contactos sin identificar.

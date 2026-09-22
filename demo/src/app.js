@@ -109,6 +109,9 @@ const SUGERENCIAS = [
 let agente = createAgent();
 let ocupado = false;
 let sessionId = 'sim-' + Math.random().toString(36).slice(2, 10);
+/* Cada sesión del simulador es un contacto distinto: así el CRM agrupa
+   por paciente de verdad en vez de fundirlo todo en uno. */
+let telefonoSesion = telefonoFicticio();
 /* modo: 'ia' cuando hay backend con credencial; 'reglas' si no. */
 let modo = { ia: false, modelo: null, effort: null };
 const metricas = { turnos: 0, mensajesBot: 0, tools: 0, latencias: [], escalamientos: 0, guardrailsActivados: 0 };
@@ -195,7 +198,7 @@ function sincronizarConCRM(textoPaciente, res) {
   }
   publicarConversacion({
     id: sessionId,
-    contacto: { nombre: res.crm?.contacto?.paciente_nombre || null, telefono: '+507 6480-0336' },
+    contacto: { nombre: res.crm?.contacto?.paciente_nombre || null, telefono: telefonoSesion },
     crm: res.crm,
     mensajes,
     notaPublicada: Boolean(res.crm && res.crm.nota_privada),
@@ -234,6 +237,12 @@ function actualizarMetricas() {
 }
 
 function espera(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* Número panameño ficticio y estable durante la sesión. */
+function telefonoFicticio() {
+  const n = () => Math.floor(Math.random() * 10);
+  return `+507 6${n()}${n()}${n()}-${n()}${n()}${n()}${n()}`;
+}
 
 async function pedirAlBackend(texto) {
   const resp = await fetch('/api/chat', {
@@ -275,6 +284,7 @@ function actualizarBadgeModo() {
 /* ---------- Reinicio ---------- */
 function reiniciar() {
   sessionId = 'sim-' + Math.random().toString(36).slice(2, 10);
+  telefonoSesion = telefonoFicticio();
   if (modo.ia) {
     fetch('/api/reset', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

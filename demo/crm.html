@@ -15,13 +15,23 @@
 </head>
 <body>
 <div class="crm-app">
+  <nav class="rail" aria-label="Secciones">
+    <a class="rail-mark" href="index.html" title="Ir al simulador de chat" aria-label="Simulador de chat">OS</a>
+    <button class="rail-btn" data-seccion="conversaciones" type="button" aria-label="Conversaciones" title="Conversaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"/></svg><span class="rail-badge" id="rail-badge" hidden>0</span><span class="rail-txt">Conversaciones</span></button>
+    <button class="rail-btn" data-seccion="pacientes" type="button" aria-label="Pacientes" title="Pacientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg><span class="rail-txt">Pacientes</span></button>
+    <button class="rail-btn" data-seccion="informes" type="button" aria-label="Informes" title="Informes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="1"/><rect x="13" y="8" width="3" height="10" rx="1"/><rect x="19" y="5" width="0" height="0"/></svg><span class="rail-txt">Informes</span></button>
+    <button class="rail-btn" data-seccion="ajustes" type="button" aria-label="Ajustes" title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg><span class="rail-txt">Ajustes</span></button>
+    <div class="rail-sep"></div>
+    <div class="conv-avatar rail-yo" id="rail-yo" aria-hidden="true">—</div>
+  </nav>
+  <div class="crm-body">
 
   <header class="crm-top">
     <div class="brand">
       <div class="brand-mark" aria-hidden="true">OS</div>
       <div class="brand-text">
         <strong>CRM · Open Side</strong>
-        <span>Bandeja de conversaciones</span>
+        <span id="crm-titulo">Bandeja de conversaciones</span>
       </div>
     </div>
 
@@ -41,7 +51,7 @@
     <button class="ctl" id="theme" type="button">🌙 Oscuro</button>
   </header>
 
-  <main class="crm-main">
+  <main class="crm-main seccion" id="seccion-conversaciones">
 
     <!-- ============ Bandeja ============ -->
     <section class="crm-col" aria-label="Bandeja de entrada">
@@ -116,6 +126,30 @@
     </aside>
 
   </main>
+
+  <section class="seccion panel-ancho" id="seccion-pacientes" hidden>
+    <header class="seccion-head">
+      <div><h2>Pacientes</h2><p>Personas que han escrito al canal, con su historial.</p></div>
+      <input type="search" id="buscar-pacientes" class="campo" placeholder="Buscar por nombre o cédula" aria-label="Buscar pacientes">
+    </header>
+    <div id="lista-pacientes"></div>
+  </section>
+
+  <section class="seccion panel-ancho" id="seccion-informes" hidden>
+    <header class="seccion-head">
+      <div><h2>Informes</h2><p>Calculado sobre las conversaciones de esta sesión.</p></div>
+    </header>
+    <div id="informes"></div>
+  </section>
+
+  <section class="seccion panel-ancho" id="seccion-ajustes" hidden>
+    <header class="seccion-head">
+      <div><h2>Ajustes</h2><p>Equipo, labels y respuestas rápidas.</p></div>
+    </header>
+    <div id="ajustes"></div>
+  </section>
+  </div>
+
   <div class="ayuda" id="ayuda" hidden role="dialog" aria-label="Atajos de teclado">
     <div class="ayuda-caja">
       <div class="ayuda-head">

@@ -20,6 +20,7 @@ import {
   agentePorId, equipoPorId, prioridadPorId, tonoLabel, rellenar
 } from './crm-data.js';
 import { formatearTexto } from './ui.js';
+import { renderPacientes, renderInformes, renderAjustes } from './crm-secciones.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -30,6 +31,8 @@ let busqueda = '';
 let seleccionada = null;
 let modoComposer = 'responder';
 let menuAbierto = null;
+let seccion = 'conversaciones';
+let filtroPacientes = '';
 let rapidasAbiertas = false;
 let rapidaActiva = 0;
 
@@ -592,6 +595,7 @@ function manejarAtajo(ev) {
   if (ev.key === 'Escape') { cerrarMenus(); cerrarRapidas(); $('#ayuda').hidden = true; ev.target.blur?.(); return; }
   if (enCampo) return;
   if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if (seccion !== 'conversaciones' && ev.key !== '?') return;
 
   const visibles = conversacionesVisibles();
   const idx = visibles.findIndex(c => c.id === seleccionada);
@@ -623,9 +627,49 @@ function refrescar() {
   pendienteRefresco = true;
   requestAnimationFrame(() => {
     pendienteRefresco = false;
+    actualizarBadgeRail();
+    if (seccion !== 'conversaciones') { renderSeccion(); return; }
     renderBandeja();
     renderConversacion();
   });
+}
+
+/* ============================================================
+   Navegación entre secciones
+   ============================================================ */
+function irA(nueva) {
+  seccion = nueva;
+  $$('.seccion').forEach(el => { el.hidden = el.id !== 'seccion-' + nueva; });
+  $$('.rail-btn').forEach(b => b.setAttribute('aria-current', String(b.dataset.seccion === nueva)));
+  $('#crm-titulo').textContent = {
+    conversaciones: 'Bandeja de conversaciones',
+    pacientes: 'Pacientes',
+    informes: 'Informes',
+    ajustes: 'Ajustes'
+  }[nueva];
+  // La búsqueda del encabezado solo tiene sentido en la bandeja.
+  $('.crm-search').hidden = nueva !== 'conversaciones';
+  renderSeccion();
+}
+
+function renderSeccion() {
+  if (seccion === 'conversaciones') { refrescar(); return; }
+  if (seccion === 'pacientes') {
+    renderPacientes($('#lista-pacientes'), filtroPacientes, id => { irA('conversaciones'); seleccionar(id); });
+  } else if (seccion === 'informes') {
+    renderInformes($('#informes'));
+  } else if (seccion === 'ajustes') {
+    renderAjustes($('#ajustes'));
+  }
+  actualizarBadgeRail();
+}
+
+function actualizarBadgeRail() {
+  const pendientes = listarConversaciones().filter(c => sinLeer(c) > 0).length;
+  const badge = $('#rail-badge');
+  if (!badge) return;
+  badge.textContent = pendientes;
+  badge.hidden = pendientes === 0;
 }
 
 /* ============================================================
@@ -671,12 +715,22 @@ function montar() {
   document.addEventListener('keydown', manejarAtajo);
   document.addEventListener('click', () => cerrarMenus());
 
+  // Rail de navegación
+  $$('.rail-btn').forEach(b => b.addEventListener('click', () => irA(b.dataset.seccion)));
+  $('#buscar-pacientes').addEventListener('input', e => {
+    filtroPacientes = e.target.value;
+    if (seccion === 'pacientes') renderSeccion();
+  });
+
   // Identidad del agente
   const yo = agentePorId(YO);
   $('#yo-nombre').textContent = yo.nombre;
   $('#yo-rol').textContent = yo.rol;
   $('#yo-avatar').textContent = iniciales(yo.nombre);
   $('#yo-avatar').style.background = yo.color;
+  $('#rail-yo').textContent = iniciales(yo.nombre);
+  $('#rail-yo').style.background = yo.color;
+  $('#rail-yo').title = yo.nombre;
 
   // Tema
   const btnTema = $('#theme');
@@ -688,7 +742,11 @@ function montar() {
   let inicial = 'light';
   try { inicial = localStorage.getItem('os-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) { /* ignorar */ }
   aplicar(inicial);
-  btnTema.addEventListener('click', () => aplicar(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+  btnTema.addEventListener('click', () => {
+    aplicar(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    // Los gráficos tienen pasos propios por modo, no un volteo automático.
+    if (seccion === 'informes') renderSeccion();
+  });
 
   // En vivo
   suscribir(ev => {
@@ -700,6 +758,7 @@ function montar() {
   // El reloj de espera y las posposiciones vencidas necesitan repintado periódico
   setInterval(renderBandeja, 30000);
 
+  irA('conversaciones');
   const primeras = conversacionesVisibles();
   if (primeras.length) seleccionada = primeras[0].id;
   refrescar();

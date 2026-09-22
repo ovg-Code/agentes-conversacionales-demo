@@ -568,3 +568,243 @@ kbd {
   .yo { display: none; }
   .menu-panel { right: auto; left: 0; transform-origin: top left; }
 }
+
+/* ============================================================
+   Rail de navegación y secciones
+   ============================================================ */
+.crm-app { grid-template-rows: none; grid-template-columns: 64px minmax(0, 1fr); }
+.crm-body { display: grid; grid-template-rows: auto 1fr; min-width: 0; min-height: 0; overflow: hidden; }
+
+.rail {
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-2);
+  background: var(--surface-panel);
+  border-right: 1px solid var(--surface-border);
+}
+.rail-mark {
+  width: 36px; height: 36px; border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--os-blue-600), var(--os-cyan-500));
+  display: grid; place-items: center;
+  color: #fff; font-weight: 700; font-size: 12px; letter-spacing: -.3px;
+  text-decoration: none;
+  margin-bottom: var(--sp-3);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.rail-mark:active { transform: scale(0.94); }
+
+.rail-btn {
+  position: relative;
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  background: none; border: 0; cursor: pointer;
+  border-radius: var(--r-md);
+  color: var(--text-secondary);
+  transition: background-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              transform var(--dur-press) var(--ease-out);
+}
+.rail-btn svg { width: 21px; height: 21px; }
+@media (hover: hover) and (pointer: fine) {
+  .rail-btn:hover { background: var(--surface-sunken); color: var(--text-primary); }
+}
+.rail-btn:active { transform: scale(0.92); }
+.rail-btn[aria-current="true"] { background: var(--os-blue-100); color: var(--os-blue-600); }
+
+/* La etiqueta aparece al pasar el ratón, sin robar sitio al icono. */
+.rail-txt {
+  position: absolute; left: calc(100% + 10px); top: 50%;
+  transform: translateY(-50%) scale(0.96);
+  transform-origin: left center;
+  background: var(--n-800); color: var(--n-0);
+  font-size: 11.5px; font-weight: 500;
+  padding: 4px var(--sp-2); border-radius: var(--r-sm);
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; z-index: 60;
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .rail-btn:hover .rail-txt { opacity: 1; transform: translateY(-50%) scale(1); }
+}
+.rail-badge {
+  position: absolute; top: 4px; right: 4px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: var(--r-full);
+  background: var(--sem-danger); color: #fff;
+  font-size: 10px; font-weight: 700; line-height: 16px;
+  text-align: center;
+}
+.rail-sep { flex: 1; }
+.rail-yo { width: 34px; height: 34px; font-size: 11px; }
+
+/* ---------- Secciones ---------- */
+.seccion { min-height: 0; min-width: 0; }
+.panel-ancho { overflow-y: auto; padding: var(--sp-6); }
+.seccion-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--sp-4); flex-wrap: wrap;
+  margin-bottom: var(--sp-5);
+}
+.seccion-head h2 { margin: 0; font-size: var(--fs-lg); font-weight: 600; }
+.seccion-head p { margin: 2px 0 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+.campo {
+  border: 1px solid var(--surface-border);
+  background: var(--surface-panel);
+  border-radius: var(--r-md);
+  padding: 7px var(--sp-3);
+  font-size: var(--fs-sm); min-width: 240px;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.campo:focus { border-color: var(--os-blue-400); }
+
+/* ---------- Tablas ---------- */
+.tabla {
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--surface-panel);
+}
+.tabla-head, .tabla-fila {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 1.2fr .9fr .7fr .8fr;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+  text-align: left;
+}
+.tabla-head.equipo, .tabla-fila.equipo { grid-template-columns: 1.4fr 1.4fr 1.4fr; }
+.tabla-head {
+  background: var(--surface-sunken);
+  font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--text-secondary); font-weight: 600;
+}
+.tabla-fila {
+  width: 100%; background: none; border: 0;
+  border-top: 1px solid var(--surface-border);
+  font-size: var(--fs-sm); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-press) var(--ease-out);
+}
+.tabla-fila.equipo { cursor: default; }
+@media (hover: hover) and (pointer: fine) {
+  button.tabla-fila:hover { background: var(--surface-sunken); }
+}
+button.tabla-fila:active { transform: scale(0.995); }
+.celda-persona { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.celda-persona .conv-avatar { width: 30px; height: 30px; font-size: 11px; flex: 0 0 auto; }
+.celda-persona > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+.empty { color: var(--text-secondary); font-style: italic; }
+
+/* ---------- Informes ---------- */
+.hero-bloque {
+  padding: var(--sp-6) 0 var(--sp-5);
+  border-bottom: 1px solid var(--surface-border);
+  margin-bottom: var(--sp-5);
+}
+/* Cifra principal: cifras proporcionales, que a este tamaño se ven mejor
+   que las tabulares. Solo una por vista. */
+.hero-num {
+  font-size: 64px; font-weight: 600; line-height: 1;
+  letter-spacing: -2px; color: var(--os-blue-600);
+}
+.hero-pct { font-size: 28px; font-weight: 500; margin-left: 2px; letter-spacing: 0; }
+.hero-lab { font-size: var(--fs-sm); color: var(--text-secondary); margin-top: var(--sp-2); }
+
+.tiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sp-3); margin-bottom: var(--sp-6);
+}
+.tile {
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+  background: var(--surface-panel);
+}
+.tile-val { font-size: var(--fs-xl); font-weight: 600; line-height: 1.1; }
+.tile-lab { font-size: var(--fs-xs); color: var(--text-secondary); margin-top: 4px; }
+.tile-nota { font-size: 11px; color: var(--text-secondary); margin-top: 2px; opacity: .8; }
+
+.grafico { margin-bottom: var(--sp-6); }
+.grafico h3 {
+  font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .8px;
+  color: var(--text-secondary); font-weight: 600; margin: 0 0 var(--sp-3);
+}
+
+/* Barra apilada: los 2px de separación son del color de la superficie. */
+.apilada {
+  display: flex; height: 18px; border-radius: var(--r-sm); overflow: hidden;
+  background: var(--surface-sunken); gap: 2px;
+}
+.apilada .seg { display: block; min-width: 6px; }
+.leyenda { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-3); font-size: var(--fs-xs); color: var(--text-secondary); }
+.ley { display: inline-flex; align-items: center; gap: 6px; }
+.ley b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.punto { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+/* Barras: una sola serie, un solo tono. 14px de grosor, extremo
+   redondeado y base cuadrada. */
+.barras { display: grid; gap: var(--sp-2); }
+.barra-fila {
+  display: grid; grid-template-columns: 170px 1fr 40px;
+  align-items: center; gap: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+.barra-lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barra-pista { height: 14px; background: var(--surface-sunken); border-radius: 3px; overflow: hidden; }
+.barra {
+  display: block; height: 100%;
+  background: var(--os-blue-600);
+  border-radius: 0 4px 4px 0;
+  transition: width var(--dur-panel) var(--ease-out);
+}
+.barra-val { font-family: var(--font-mono); font-size: 12px; text-align: right; color: var(--text-secondary); }
+
+.nota-pie { font-size: var(--fs-xs); color: var(--text-secondary); margin-top: var(--sp-5); }
+
+/* ---------- Ajustes ---------- */
+.bloque { margin-bottom: var(--sp-6); }
+.bloque h3 {
+  font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .8px;
+  color: var(--text-secondary); font-weight: 600; margin: 0 0 var(--sp-3);
+  display: flex; align-items: center; gap: var(--sp-2);
+}
+.contador {
+  background: var(--surface-sunken); color: var(--text-secondary);
+  border-radius: var(--r-full); padding: 1px 7px; font-size: 11px; letter-spacing: 0;
+}
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-3); }
+.card {
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-panel);
+  display: grid; gap: 4px;
+}
+.card strong { font-size: var(--fs-sm); font-weight: 600; }
+.card code {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--os-blue-600); background: var(--os-blue-100);
+  padding: 1px 5px; border-radius: var(--r-sm);
+}
+.card span { font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.5; }
+
+@media (max-width: 1100px) {
+  .crm-app { grid-template-columns: 56px minmax(0, 1fr); height: auto; }
+  .rail { position: sticky; top: 0; height: 100vh; }
+  .panel-ancho { padding: var(--sp-4); }
+  .tabla-head, .tabla-fila { grid-template-columns: 1.6fr 1fr .8fr; }
+  .tabla-head span:nth-child(n+4), .tabla-fila span:nth-child(n+4) { display: none; }
+  .hero-num { font-size: 48px; }
+  .barra-fila { grid-template-columns: 110px 1fr 34px; }
+}
+
+/* El teléfono es el identificador real del canal: va bajo el nombre,
+   porque muchas veces es lo único que distingue a dos contactos. */
+.persona-txt { min-width: 0; display: grid; gap: 1px; }
+.persona-nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.persona-sub {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-secondary); white-space: nowrap;
+}

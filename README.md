@@ -64,7 +64,9 @@ El chat y el CRM son cosas distintas y viven separadas:
 | Qué muestra | réplica de WhatsApp: burbujas, colitas, checks de leído, indicador de escritura, quick replies | bandeja de tres columnas: conversaciones, hilo, datos del paciente |
 | Extra | inspector con la traza del agente, escenarios y métricas | asignación, prioridad, posponer, SLA, labels, respuestas rápidas, atajos |
 
-**El CRM**, con el modelo de datos de Chatwoot y código propio:
+**El CRM** tiene cuatro secciones tras un rail de navegación: **Conversaciones**, **Pacientes** (agrupados por cédula o teléfono, con su historial y sus citas), **Informes** (métricas calculadas sobre las conversaciones reales) y **Ajustes** (equipo, labels, respuestas rápidas).
+
+En la bandeja, con el modelo de datos de Chatwoot y código propio:
 
 - **Seis vistas** con contadores en vivo: Activas · Mías · Libres · Bot · Pospuestas · Listas.
 - **Asignación** a agentes y equipos · **prioridad** en cuatro niveles · **posponer** con reingreso automático.
