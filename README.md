@@ -30,19 +30,27 @@ El LLM interpreta intención y selecciona herramientas. Cupos, precios, cobertur
 | [`docs/02-arquitectura.md`](docs/02-arquitectura.md) | Diagrama del sistema, los 7 pasos del turno, modelo de datos en Chatwoot, reglas que el LLM no puede sobreescribir, política de escalamiento, plantillas, stack, métricas y roadmap. |
 | [`docs/03-design-system.md`](docs/03-design-system.md) | Tokens de color/tipografía/espaciado, UI del paciente (WhatsApp), UI del equipo (consola), accesibilidad y **diseño conversacional**: persona, vocabulario, estructura de turno, manejo de error. |
 | [`docs/04-agente-playbook.md`](docs/04-agente-playbook.md) | Prompt de sistema listo para producción, catálogo de intenciones, esquemas JSON de herramientas, guiones de consentimiento y emergencia, 15 casos de prueba. |
-| [`demo/`](demo/) | El simulador. |
+| [`docs/05-agente-ia.md`](docs/05-agente-ia.md) | **El agente real**: decisiones de API (modelo, thinking, effort, `strict`, fallbacks, caché), las 12 herramientas, las precondiciones de servidor, privacidad y qué falta para producción. |
+| [`server/`](server/) | El agente de IA: Claude con tool-calling. |
+| [`demo/`](demo/) | El simulador y el motor de reglas de respaldo. |
 
 ---
 
-## El simulador
+## Arrancar
 
 ```bash
-cd demo
-python3 -m http.server 8000
-# abrir http://localhost:8000
+npm install
+export ANTHROPIC_API_KEY=sk-ant-...     # activa el agente de IA
+npm start                                # http://localhost:3000
 ```
 
-No hay build, ni dependencias, ni instalación. Es HTML, CSS y JavaScript con módulos ES.
+Sin credencial el servidor arranca igual y la página cae a un **motor de reglas local** equivalente, útil para probar el flujo sin gastar tokens. El badge del encabezado indica en qué modo estás.
+
+También puedes abrir solo el frontend, sin backend:
+
+```bash
+cd demo && python3 -m http.server 8000
+```
 
 **Izquierda:** lo que ve el paciente — réplica de WhatsApp con burbujas, colitas, checks de leído, indicador de escritura, botones de respuesta rápida, modo claro y oscuro.
 
@@ -73,35 +81,46 @@ No hay build, ni dependencias, ni instalación. Es HTML, CSS y JavaScript con m�
 ## Pruebas
 
 ```bash
-cd demo
-node tests.mjs
+npm run test:loop   # 41 comprobaciones del agente de IA
+npm test            # 16 casos del motor de reglas
 ```
 
-16 casos, de los cuales los de seguridad (emergencia, marcapasos, embarazo, diagnóstico, inyección de prompt, consentimiento) son **bloqueantes de release**: si alguno falla, no se despliega.
+`server/tests-loop.mjs` ejercita el **loop agéntico real** sustituyendo solo la llamada HTTP por un transporte simulado: verifica precondiciones, triage (cero llamadas a la API en una emergencia), PII que nunca llega al modelo, `refusal`, `pause_turn`, límite de iteraciones y recorte de historial — sin gastar un token.
+
+Los casos de seguridad (emergencia, marcapasos, embarazo, diagnóstico, inyección de prompt, consentimiento) son **bloqueantes de release**: si alguno falla, no se despliega.
+
+> Las pruebas cubren el andamiaje alrededor del modelo, no su juicio. Antes del piloto hace falta una suite de evals contra la API real, con especial atención a los casos de seguridad — ver `docs/05-agente-ia.md` §8.
 
 ---
 
-## De la demo a producción
-
-La demo implementa la **misma arquitectura** que el diseño de producción. La única diferencia está en `demo/src/agent.js`: donde iría una llamada a Claude con tool-calling, hay un motor de reglas en la función `interpretar()`.
-
-Lo que **no** cambia al conectar el modelo real:
-
-- el triage determinista pre-LLM
-- los guardrails de entrada (PII, anti-inyección) y de salida (anti-diagnóstico, anclaje a herramientas)
-- las herramientas como única fuente de verdad
-- las precondiciones de seguridad en el ejecutor
-- la política de escalamiento
-- el formato de la traza
+## Cómo está montado
 
 ```
-demo/src/
-  kb.js      · catálogo, sedes, horarios, screening, términos de triage
-  tools.js   · herramientas deterministas (precios, cupos, screening, escalamiento)
-  agent.js   · orquestador: triage → guardrails → intención → herramientas → escalamiento
-  ui.js      · render del chat y del inspector
-  app.js     · wiring y escenarios
+server/
+  agent-ai.js      · el agente: triage pre-LLM → guardrails → Claude con tool-calling
+                     → ejecutor con precondiciones → guardrails de salida → escalamiento
+  tool-schemas.js  · las 12 herramientas en formato Anthropic, todas con strict:true
+  index.js         · HTTP: estáticos + /api/chat + /api/health + /api/reset
+  tests-loop.mjs   · 41 comprobaciones del loop con transporte simulado
+
+demo/
+  src/kb.js      · catálogo, sedes, horarios, screening, términos de triage
+  src/tools.js   · herramientas deterministas (precios, cupos, screening, escalamiento)
+  src/agent.js   · motor de reglas de respaldo, misma arquitectura sin modelo
+  src/ui.js      · render del chat y del inspector
+  src/app.js     · wiring, escenarios y detección de modo
+  tests.mjs      · 16 casos del motor de reglas
 ```
+
+**El modelo entiende; el ejecutor decide.** Tres precondiciones se evalúan contra el estado del servidor, no contra lo que el modelo afirme:
+
+```js
+if (!st.consentimiento)                                → SIN_CONSENTIMIENTO
+if (esResonancia && st.screening !== 'aprobado')       → SCREENING_NO_APROBADO
+if (!st.cupos.some(c => c.cupo_id === input.cupo_id))  → CUPO_DESCONOCIDO
+```
+
+La tercera es la que cierra el hueco de las alucinaciones: **si el modelo inventa un horario, ese cupo no existe en el estado de la sesión y la llamada se rechaza.** El rechazo vuelve como `tool_result` con `is_error: true`, y el agente se corrige en la siguiente iteración.
 
 ## Antes de cualquier piloto
 

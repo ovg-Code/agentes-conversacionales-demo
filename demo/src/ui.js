@@ -160,10 +160,12 @@ export function renderTraza(trace, contenedor) {
 
   const pillIntencion = trace.triage && trace.triage.disparo
     ? `<span class="pill danger">triage · ${trace.triage.tipo}</span>`
-    : `<span class="pill ai">${trace.intencion}</span>`;
+    : `<span class="pill ai">${escapar(trace.intencion || (trace.modo === 'ia' ? 'claude' : 'desconocido'))}</span>`;
 
   const conf = trace.triage && trace.triage.disparo ? 1 : trace.confianza;
-  const pillConf = `<span class="pill ${conf >= .8 ? 'ok' : conf >= .5 ? 'warn' : 'danger'}">${(conf * 100).toFixed(0)}%</span>`;
+  const pillConf = conf == null
+    ? `<span class="pill info">${trace.tools.length} tool${trace.tools.length === 1 ? '' : 's'}</span>`
+    : `<span class="pill ${conf >= .8 ? 'ok' : conf >= .5 ? 'warn' : 'danger'}">${(conf * 100).toFixed(0)}%</span>`;
 
   const head = document.createElement('button');
   head.className = 'trace-head';
@@ -175,10 +177,25 @@ export function renderTraza(trace, contenedor) {
   const body = document.createElement('div');
   body.className = 'trace-body';
 
+  const esIA = trace.modo === 'ia';
+  const via = trace.triage && trace.triage.disparo
+    ? 'triage determinista · el modelo no vio este turno'
+    : (esIA ? 'modelo con tool-calling' : 'motor de reglas local');
+
   let html = `<dl class="kv">
-    <dt>Fase</dt><dd>${trace.fase_antes} → ${trace.fase_despues}</dd>
-    <dt>Vía</dt><dd>${trace.triage && trace.triage.disparo ? 'triage determinista (sin LLM)' : 'modelo + reglas'}</dd>
-  </dl>`;
+    <dt>Vía</dt><dd>${via}</dd>`;
+  if (esIA) {
+    html += `<dt>Modelo</dt><dd>${escapar(trace.modelo || '—')}${trace.effort ? ' · effort ' + escapar(trace.effort) : ''}</dd>`;
+    if (trace.iteraciones) html += `<dt>Iteraciones</dt><dd>${trace.iteraciones}</dd>`;
+    if (trace.uso) {
+      html += `<dt>Tokens</dt><dd>${trace.uso.input} in · ${trace.uso.output} out` +
+              (trace.uso.cache_read ? ` · ${trace.uso.cache_read} caché` : '') + `</dd>`;
+    }
+    if (trace.latencia_total) html += `<dt>Latencia</dt><dd>${trace.latencia_total} ms</dd>`;
+  } else {
+    html += `<dt>Fase</dt><dd>${trace.fase_antes} → ${trace.fase_despues}</dd>`;
+  }
+  html += `</dl>`;
 
   if (trace.tools.length) {
     html += `<div><div class="crm-section" style="margin:0 0 8px"><h3>Herramientas</h3></div>`;

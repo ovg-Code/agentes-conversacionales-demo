@@ -107,6 +107,9 @@ const SUGERENCIAS = [
 /* ---------- Estado de la app ---------- */
 let agente = createAgent();
 let ocupado = false;
+let sessionId = 'sim-' + Math.random().toString(36).slice(2, 10);
+/* modo: 'ia' cuando hay backend con credencial; 'reglas' si no. */
+let modo = { ia: false, modelo: null, effort: null };
 const metricas = { turnos: 0, mensajesBot: 0, tools: 0, latencias: [], escalamientos: 0, guardrailsActivados: 0 };
 
 const chat = new ChatUI($('#thread'), { onButton: b => enviar({ text: b.label, payload: b.payload }) });
@@ -122,15 +125,34 @@ async function enviar(entrada) {
   chat.mensaje('out', { text: texto });
   metricas.turnos++;
 
-  const res = agente.handle(entrada);
+  let res;
+  if (modo.ia) {
+    chat.typing(true);
+    try {
+      res = await pedirAlBackend(texto);
+    } catch (err) {
+      chat.typing(false);
+      chat.aviso(`No pude contactar al agente de IA (${err.message}). Sigo con el motor de reglas local.`);
+      modo.ia = false;
+      actualizarBadgeModo();
+      res = agente.handle(entrada);
+    }
+    chat.typing(false);
+  } else {
+    res = agente.handle(entrada);
+  }
 
   // Latencia realista: "escribiendo…" proporcional a la respuesta
   for (let i = 0; i < res.mensajes.length; i++) {
     const m = res.mensajes[i];
-    const ms = Math.min(1600, 420 + (m.text || '').length * 7);
-    chat.typing(true);
-    await espera(i === 0 ? ms : Math.min(1100, ms * .7));
-    chat.typing(false);
+    const ms = modo.ia
+      ? Math.min(700, 200 + (m.text || '').length * 3)
+      : Math.min(1600, 420 + (m.text || '').length * 7);
+    if (!(modo.ia && i === 0)) {
+      chat.typing(true);
+      await espera(ms);
+      chat.typing(false);
+    }
     chat.mensaje('in', m, { esBot: true });
     metricas.mensajesBot++;
     if (i < res.mensajes.length - 1) await espera(180);
@@ -166,8 +188,52 @@ function actualizarMetricas() {
 
 function espera(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+async function pedirAlBackend(texto) {
+  const resp = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId, text: texto })
+  });
+  if (!resp.ok) {
+    const cuerpo = await resp.json().catch(() => ({}));
+    throw new Error(cuerpo.mensaje || `HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+async function detectarModo() {
+  try {
+    const r = await fetch('/api/health');
+    if (r.ok) modo = await r.json();
+  } catch (e) {
+    modo = { ia: false, modelo: null, effort: null };
+  }
+  actualizarBadgeModo();
+}
+
+function actualizarBadgeModo() {
+  const el = $('#mode-badge');
+  if (!el) return;
+  if (modo.ia) {
+    el.textContent = `IA · ${modo.modelo}`;
+    el.className = 'pill ai';
+    el.title = `Agente real: Claude con tool-calling (effort ${modo.effort}).`;
+  } else {
+    el.textContent = 'motor de reglas';
+    el.className = 'pill muted';
+    el.title = 'Sin backend con credencial. Arranca el servidor con ANTHROPIC_API_KEY para usar el agente de IA.';
+  }
+}
+
 /* ---------- Reinicio ---------- */
 function reiniciar() {
+  sessionId = 'sim-' + Math.random().toString(36).slice(2, 10);
+  if (modo.ia) {
+    fetch('/api/reset', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId })
+    }).catch(() => { /* el reinicio local basta */ });
+  }
   agente.reset();
   resetEstadoHerramientas();
   agente = createAgent();
@@ -275,6 +341,7 @@ function montar() {
     : 'fuera de horario · asistente virtual';
 
   reiniciar();
+  detectarModo();
 }
 
 function dentroHorarioAhora() {

@@ -1,0 +1,16 @@
+{
+  "name": "agentes-conversacionales-openside",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Agente conversacional de WhatsApp con CRM tipo Chatwoot para Open Side",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node demo/tests.mjs",
+    "test:loop": "node server/tests-loop.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.0"
+  },
+  "engines": { "node": ">=20" }
+}
