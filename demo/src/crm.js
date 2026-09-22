@@ -16,7 +16,7 @@ import {
   estadoEfectivo, sinLeer
 } from './bus.js';
 import {
-  YO, AGENTES, EQUIPOS, PRIORIDADES, LABELS, RESPUESTAS_RAPIDAS, POSPONER, MACROS,
+  YO, AGENTES, EQUIPOS, PRIORIDADES, LABELS, RESPUESTAS_RAPIDAS, POSPONER, MACROS, leerAjustes,
   agentePorId, equipoPorId, prioridadPorId, tonoLabel, rellenar
 } from './crm-data.js';
 import { formatearTexto } from './ui.js';
@@ -24,6 +24,10 @@ import { pintarIconos, icono } from './iconos.js';
 import { renderPacientes, renderInformes, renderAjustes } from './crm-secciones.js';
 import { ejecutarMacro, ejecutarEnBloque, ejecutarAccion } from './crm-acciones.js';
 import { renderResultados } from './crm-buscador.js';
+import {
+  ATRIBUTOS, OPERADORES, atributoPorClave, cumple, describir,
+  listarVistas, guardarVista, borrarVista, vistaPorId
+} from './crm-filtros.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -40,6 +44,10 @@ let seleccion = new Set();       // ids marcados para acciones en bloque
 let citando = null;              // mensaje al que se está respondiendo
 let buscadorActivo = 0;
 let resultadosBusqueda = [];
+let condiciones = [];            // filtro avanzado en construcción
+let union = 'y';
+let vistaActiva = null;          // id de la vista guardada aplicada
+let adjuntoPendiente = null;     // archivo listo para enviarse con el mensaje
 let mencionesAbiertas = false;
 let mencionActiva = 0;
 let rapidasAbiertas = false;
@@ -52,9 +60,13 @@ function conversacionesVisibles() {
   const todas = listarConversaciones();
   const q = busqueda.trim().toLowerCase();
 
+  const hayFiltro = condiciones.some(c => c.atributo && c.operador);
   let lista = todas.filter(c => {
     const estado = estadoEfectivo(c);
-    switch (vista) {
+    // Con un filtro avanzado activo manda el filtro: la vista dejaría fuera
+    // resultados que el usuario acaba de pedir explícitamente.
+    if (hayFiltro) { if (!cumple(c, condiciones, union)) return false; }
+    else switch (vista) {
       case 'mias':        if (c.asignadoA !== YO || estado === 'resolved') return false; break;
       case 'sin_asignar': if (c.asignadoA || estado === 'resolved' || estado === 'pending') return false; break;
       case 'pending':     if (estado !== 'pending') return false; break;
@@ -292,6 +304,7 @@ function renderConversacion() {
 
   $('#composer').hidden = estado === 'resolved';
   renderCita();
+  renderAdjuntoPendiente();
   actualizarPistaComposer(estado);
   renderContexto(c, estado);
 
@@ -378,7 +391,7 @@ function renderHilo(c, thread) {
     const tono = m.privado ? 'warn' : m.autor === 'bot' ? 'ai' : m.autor === 'humano' ? 'human' : 'muted';
     el.innerHTML = `
       ${cambio ? `<div class="msg-meta"><span class="pill ${tono}">${m.privado ? icono('nota', { size: 11 }) : ''}${escapar(quien)}</span><span>${hora(m.ts)}</span></div>` : ''}
-      <div class="msg-bubble" title="${hora(m.ts)}">${m.privado ? '' : ''}${m.responde ? `<span class="respuesta-a"><b>${escapar(m.responde.autor === 'paciente' ? 'Paciente' : m.responde.autor === 'bot' ? 'Sofía' : 'Agente')}</b>${escapar(m.responde.texto.replace(/\*/g, ''))}</span>` : ''}${m.privado ? resaltarMenciones(m.texto || '') : formatearTexto(m.texto || '')}</div>
+      <div class="msg-bubble" title="${hora(m.ts)}">${m.privado ? '' : ''}${m.responde ? `<span class="respuesta-a"><b>${escapar(m.responde.autor === 'paciente' ? 'Paciente' : m.responde.autor === 'bot' ? 'Sofía' : 'Agente')}</b>${escapar(m.responde.texto.replace(/\*/g, ''))}</span>` : ''}${m.privado ? resaltarMenciones(m.texto || '') : formatearTexto(m.texto || '')}${m.adjunto ? renderAdjunto(m.adjunto) : ''}</div>
       ${m.privado ? '' : `<button class="msg-citar" type="button" title="Responder a este mensaje">${icono('atras', { size: 13 })}Responder</button>`}`;
     const btnCitar = el.querySelector('.msg-citar');
     if (btnCitar) btnCitar.addEventListener('click', () => citar(m));
@@ -479,6 +492,7 @@ function renderContexto(c, estado) {
       <h3>Acciones</h3>
       <div class="stack">
         <button class="btn block" id="btn-nota" type="button">Añadir nota privada</button>
+        <button class="btn block" id="btn-exportar" type="button">Exportar transcripción</button>
         <button class="btn block" id="btn-eliminar" type="button">Descartar conversación</button>
       </div>
     </div>`;
@@ -500,12 +514,50 @@ function renderContexto(c, estado) {
   $$('.hist-row').forEach(b => b.addEventListener('click', () => seleccionar(b.dataset.id)));
 
   $('#btn-nota')?.addEventListener('click', () => { cambiarModo('nota'); $('#composer-texto').focus(); });
+  $('#btn-exportar')?.addEventListener('click', () => exportar(c));
   $('#btn-eliminar')?.addEventListener('click', () => {
     if (!confirm('¿Descartar esta conversación de la bandeja? Solo afecta a esta demostración.')) return;
     eliminarConversacion(seleccionada);
     seleccionada = null;
     refrescar();
   });
+}
+
+/** Descarga la conversación como texto plano, notas incluidas. */
+function exportar(c) {
+  const lineas = [
+    `Conversación · Open Side`,
+    `Paciente: ${nombreDe(c)}`,
+    `Teléfono: ${c.contacto?.telefono || '—'}`,
+    `Cédula: ${c.crm?.contacto?.paciente_cedula || '—'}`,
+    `Estudio: ${c.crm?.conversacion?.estudio_solicitado || '—'}`,
+    `Estado: ${estadoEfectivo(c)}`,
+    `Exportada: ${new Date().toLocaleString('es-PA')}`,
+    '',
+    '─'.repeat(60),
+    ''
+  ];
+  for (const m of c.mensajes || []) {
+    const quien = m.privado ? '[NOTA PRIVADA]'
+      : m.autor === 'paciente' ? 'Paciente'
+      : m.autor === 'bot' ? 'Sofía (asistente virtual)'
+      : 'Agente';
+    lineas.push(`[${new Date(m.ts).toLocaleString('es-PA')}] ${quien}:`);
+    lineas.push((m.texto || '').replace(/\*/g, ''));
+    if (m.adjunto) lineas.push(`   (adjunto: ${m.adjunto.nombre})`);
+    lineas.push('');
+  }
+  lineas.push('─'.repeat(60));
+  lineas.push('Documento de demostración con datos ficticios.');
+
+  const blob = new Blob([lineas.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `conversacion-${(nombreDe(c) || 'paciente').replace(/\s+/g, '-').toLowerCase()}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  avisar('Transcripción descargada');
 }
 
 /** Otras conversaciones del mismo paciente (por cédula o teléfono). */
@@ -552,7 +604,7 @@ function nota(id, texto) { agregarNota(id, texto, 'sistema'); }
 function enviar() {
   const ta = $('#composer-texto');
   const texto = ta.value.trim();
-  if (!texto || !seleccionada) return;
+  if ((!texto && !adjuntoPendiente) || !seleccionada) return;
 
   if (modoComposer === 'nota') {
     agregarNota(seleccionada, texto, 'humano');
@@ -565,15 +617,48 @@ function enviar() {
     }
     publicarMensaje(seleccionada, {
       autor: 'humano', texto, privado: false,
+      adjunto: adjuntoPendiente,
       responde: citando ? { texto: (citando.texto || '').slice(0, 140), autor: citando.autor } : null
     });
     citando = null;
+    adjuntoPendiente = null;
     renderCita();
+    renderAdjuntoPendiente();
   }
   ta.value = '';
   ta.style.height = 'auto';
   cerrarRapidas();
   refrescar();
+}
+
+async function elegirAdjunto(archivo) {
+  if (!archivo) return;
+  const maxKB = leerAjustes().adjuntoMaxKB;
+  if (archivo.size > maxKB * 1024) {
+    avisar(`El archivo pesa ${tamano(archivo.size)}. En esta demo el límite es ${maxKB} KB porque todo se guarda en el navegador.`);
+    return;
+  }
+  const datos = await new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = () => rej(fr.error);
+    fr.readAsDataURL(archivo);
+  }).catch(() => null);
+  if (!datos) { avisar('No pude leer el archivo.'); return; }
+  adjuntoPendiente = { nombre: archivo.name, tipo: archivo.type, tamano: archivo.size, datos };
+  renderAdjuntoPendiente();
+}
+
+function renderAdjuntoPendiente() {
+  const caja = $('#adjunto-pendiente');
+  if (!adjuntoPendiente) { caja.hidden = true; return; }
+  const a = adjuntoPendiente;
+  caja.hidden = false;
+  caja.innerHTML = `
+    ${(a.tipo || '').startsWith('image/') ? `<img class="adjunto-mini" src="${a.datos}" alt="">` : icono('archivo', { size: 16 })}
+    <span class="adjunto-txt"><b>${escapar(a.nombre)}</b><span>${tamano(a.tamano)}</span></span>
+    <button class="cita-cerrar" type="button" aria-label="Quitar el adjunto">${icono('cerrar', { size: 14 })}</button>`;
+  caja.querySelector('.cita-cerrar').addEventListener('click', () => { adjuntoPendiente = null; renderAdjuntoPendiente(); });
 }
 
 function citar(m) {
@@ -671,6 +756,27 @@ function cerrarMenciones() {
   $('#menciones').hidden = true;
   mencionesAbiertas = false;
   mencionActiva = 0;
+}
+
+/** Una imagen se enseña; cualquier otro archivo se ofrece para descargar. */
+function renderAdjunto(a) {
+  const esImagen = (a.tipo || '').startsWith('image/');
+  if (esImagen) {
+    return `<a class="adjunto-img" href="${a.datos}" target="_blank" rel="noopener" title="${escapar(a.nombre)}">
+      <img src="${a.datos}" alt="${escapar(a.nombre)}" loading="lazy">
+    </a>`;
+  }
+  return `<a class="adjunto-archivo" href="${a.datos}" download="${escapar(a.nombre)}">
+    ${icono('archivo', { size: 15 })}
+    <span class="adjunto-txt"><b>${escapar(a.nombre)}</b><span>${tamano(a.tamano)}</span></span>
+  </a>`;
+}
+
+function tamano(bytes) {
+  if (!bytes) return '';
+  return bytes < 1024 ? `${bytes} B`
+    : bytes < 1048576 ? `${(bytes / 1024).toFixed(0)} KB`
+    : `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
 /** En una nota, @Nombre se destaca para que el mencionado lo vea. */
@@ -787,6 +893,7 @@ const ATAJOS = [
   ['n', 'Escribir nota privada'],
   ['r', 'Responder al paciente'],
   ['⌘K / Ctrl+K', 'Buscador global'],
+  ['f', 'Filtros avanzados'],
   ['x', 'Marcar o desmarcar la conversación'],
   ['m', 'Aplicar una macro'],
   ['clic derecho', 'Menú de acciones rápidas'],
@@ -808,7 +915,7 @@ function manejarAtajo(ev) {
     ev.preventDefault(); abrirBuscador(); return;
   }
   if (ev.key === 'Escape') {
-    cerrarMenus(); cerrarRapidas(); cerrarMenciones(); cerrarBuscador();
+    cerrarMenus(); cerrarRapidas(); cerrarMenciones(); cerrarBuscador(); cerrarFiltros();
     $('#ayuda').hidden = true; $('#contextual').hidden = true;
     if (seleccion.size) limpiarSeleccion();
     if (citando) { citando = null; renderCita(); }
@@ -834,6 +941,7 @@ function manejarAtajo(ev) {
       } break;
     case 'n': if (seleccionada) { cambiarModo('nota'); $('#composer-texto').focus(); ev.preventDefault(); } break;
     case 'r': if (seleccionada) { cambiarModo('responder'); $('#composer-texto').focus(); ev.preventDefault(); } break;
+    case 'f': abrirFiltros(); ev.preventDefault(); break;
     case 'x': if (seleccionada) { alternarSeleccion(seleccionada); ev.preventDefault(); } break;
     case 'm': if (seleccionada) {
         const btn = $$('.menu-wrap .btn').find(b => b.textContent.includes('Macros'));
@@ -858,6 +966,156 @@ function refrescar() {
     renderBandeja();
     renderConversacion();
   });
+}
+
+/* ============================================================
+   Filtros avanzados
+   ============================================================ */
+function abrirFiltros() {
+  if (!condiciones.length) condiciones = [nuevaCondicion()];
+  $('#filtros').hidden = false;
+  renderFiltros();
+}
+function cerrarFiltros() { $('#filtros').hidden = true; }
+
+function nuevaCondicion() { return { atributo: 'estado', operador: 'es', valor: 'pending' }; }
+
+function renderFiltros() {
+  const cont = $('#filtros-condiciones');
+  cont.innerHTML = condiciones.map((c, i) => {
+    const attr = atributoPorClave(c.atributo);
+    const ops = OPERADORES[attr?.tipo || 'texto'] || [];
+    const sinValor = c.operador === 'existe' || c.operador === 'no_existe';
+    let campoValor;
+    if (sinValor) {
+      campoValor = '<span class="filtro-sinvalor">—</span>';
+    } else if (attr?.opciones) {
+      campoValor = `<select class="f-valor" data-i="${i}">${attr.opciones()
+        .map(([k, et]) => `<option value="${escapar(k)}"${String(k) === String(c.valor) ? ' selected' : ''}>${escapar(et)}</option>`).join('')}</select>`;
+    } else if (attr?.tipo === 'numero' || attr?.tipo === 'fecha') {
+      campoValor = `<input class="f-valor" type="number" min="0" data-i="${i}" value="${escapar(c.valor ?? '')}" placeholder="0">`;
+    } else {
+      campoValor = `<input class="f-valor" type="text" data-i="${i}" value="${escapar(c.valor ?? '')}" placeholder="texto">`;
+    }
+    return `<div class="filtro-fila">
+      ${i ? `<span class="filtro-union">${union === 'o' ? 'o' : 'y'}</span>` : '<span class="filtro-union">donde</span>'}
+      <select class="f-attr" data-i="${i}">${ATRIBUTOS
+        .map(a => `<option value="${a.clave}"${a.clave === c.atributo ? ' selected' : ''}>${escapar(a.nombre)}</option>`).join('')}</select>
+      <select class="f-op" data-i="${i}">${ops
+        .map(([k, et]) => `<option value="${k}"${k === c.operador ? ' selected' : ''}>${escapar(et)}</option>`).join('')}</select>
+      ${campoValor}
+      <button class="f-quitar" type="button" data-i="${i}" aria-label="Quitar condición">${icono('cerrar', { size: 14 })}</button>
+    </div>`;
+  }).join('');
+
+  // Cambiar de atributo puede invalidar el operador y el valor anteriores.
+  $$('.f-attr', cont).forEach(sel => sel.addEventListener('change', () => {
+    const i = +sel.dataset.i;
+    const attr = atributoPorClave(sel.value);
+    condiciones[i] = {
+      atributo: sel.value,
+      operador: (OPERADORES[attr.tipo] || [['es']])[0][0],
+      valor: attr.opciones ? attr.opciones()[0][0] : ''
+    };
+    renderFiltros();
+  }));
+  $$('.f-op', cont).forEach(sel => sel.addEventListener('change', () => {
+    condiciones[+sel.dataset.i].operador = sel.value;
+    renderFiltros();
+  }));
+  $$('.f-valor', cont).forEach(campo => {
+    // El resumen se refresca al teclear, pero sin repintar la fila:
+    // volver a montarla haría perder el foco a cada pulsación.
+    const alCambiar = () => {
+      condiciones[+campo.dataset.i].valor = campo.value;
+      $('#filtros-resumen').textContent = describir(condiciones, union);
+    };
+    campo.addEventListener('input', alCambiar);
+    campo.addEventListener('change', alCambiar);
+  });
+  $$('.f-quitar', cont).forEach(b => b.addEventListener('click', () => {
+    condiciones.splice(+b.dataset.i, 1);
+    if (!condiciones.length) condiciones = [nuevaCondicion()];
+    renderFiltros();
+  }));
+
+  $$('.filtro-union-btn').forEach(b => b.setAttribute('aria-selected', String(b.dataset.union === union)));
+  $('#filtros-resumen').textContent = describir(condiciones, union);
+}
+
+function aplicarFiltros() {
+  vistaActiva = null;
+  cerrarFiltros();
+  limpiarSeleccion();
+  renderChipFiltro();
+  refrescar();
+  const n = conversacionesVisibles().length;
+  avisar(`Filtro aplicado · ${n} ${n === 1 ? 'conversación' : 'conversaciones'}`);
+}
+
+function limpiarFiltros() {
+  condiciones = [];
+  vistaActiva = null;
+  cerrarFiltros();
+  renderChipFiltro();
+  refrescar();
+}
+
+function renderChipFiltro() {
+  const chip = $('#filtro-activo');
+  const hay = condiciones.some(c => c.atributo && c.operador);
+  if (!hay) { chip.hidden = true; return; }
+  chip.hidden = false;
+  const v = vistaActiva ? vistaPorId(vistaActiva) : null;
+  chip.innerHTML = `${icono('filtro', { size: 13 })}
+    <span class="chip-txt">${escapar(v ? v.nombre : describir(condiciones, union))}</span>
+    <button class="chip-x" type="button" aria-label="Quitar filtro">${icono('cerrar', { size: 13 })}</button>`;
+  chip.querySelector('.chip-x').addEventListener('click', limpiarFiltros);
+}
+
+/* ---------- Vistas guardadas ---------- */
+function renderVistasGuardadas() {
+  const cont = $('#vistas-guardadas');
+  const vistas = listarVistas();
+  if (!vistas.length) { cont.hidden = true; return; }
+  cont.hidden = false;
+  cont.innerHTML = `<div class="vistas-titulo">Vistas guardadas</div>` + vistas.map(v => `
+    <div class="vista-fila${v.id === vistaActiva ? ' activa' : ''}">
+      <button class="vista-btn" type="button" data-id="${v.id}" title="${escapar(describir(v.condiciones, v.union))}">
+        ${icono('filtro', { size: 13 })}<span>${escapar(v.nombre)}</span>
+      </button>
+      <button class="vista-borrar" type="button" data-id="${v.id}" aria-label="Borrar vista">${icono('papelera', { size: 13 })}</button>
+    </div>`).join('');
+
+  $$('.vista-btn', cont).forEach(b => b.addEventListener('click', () => {
+    const v = vistaPorId(b.dataset.id);
+    if (!v) return;
+    condiciones = JSON.parse(JSON.stringify(v.condiciones));
+    union = v.union || 'y';
+    vistaActiva = v.id;
+    limpiarSeleccion();
+    renderChipFiltro();
+    renderVistasGuardadas();
+    refrescar();
+  }));
+  $$('.vista-borrar', cont).forEach(b => b.addEventListener('click', () => {
+    if (!confirm('¿Borrar esta vista guardada?')) return;
+    borrarVista(b.dataset.id);
+    if (vistaActiva === b.dataset.id) limpiarFiltros();
+    renderVistasGuardadas();
+  }));
+}
+
+function guardarVistaActual() {
+  const validas = condiciones.filter(c => c.atributo && c.operador);
+  if (!validas.length) { avisar('Añade al menos una condición antes de guardar.'); return; }
+  const nombre = prompt('Nombre de la vista', describir(validas, union).slice(0, 40));
+  if (!nombre) return;
+  vistaActiva = guardarVista(nombre.trim(), validas, union);
+  renderVistasGuardadas();
+  renderChipFiltro();
+  cerrarFiltros();
+  avisar(`Vista «${nombre.trim()}» guardada`);
 }
 
 /* ============================================================
@@ -925,7 +1183,7 @@ function renderSeccion() {
   } else if (seccion === 'informes') {
     renderInformes($('#informes'));
   } else if (seccion === 'ajustes') {
-    renderAjustes($('#ajustes'));
+    renderAjustes($('#ajustes'), () => { avisar('Ajustes guardados'); renderBandeja(); });
   }
   actualizarBadgeRail();
 }
@@ -947,6 +1205,9 @@ function montar() {
   $$('.inbox-filter').forEach(b => b.addEventListener('click', () => {
     vista = b.dataset.vista;
     $$('.inbox-filter').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    // Las pestañas y el filtro avanzado compiten por lo mismo: elegir una
+    // pestaña descarta el filtro en vez de dejar dos criterios peleando.
+    if (condiciones.length) { condiciones = []; vistaActiva = null; renderChipFiltro(); renderVistasGuardadas(); }
     limpiarSeleccion();
     renderBandeja();
   }));
@@ -990,6 +1251,24 @@ function montar() {
     `<div class="atajo"><kbd>${escapar(k)}</kbd><span>${escapar(d)}</span></div>`).join('');
   document.addEventListener('keydown', manejarAtajo);
   document.addEventListener('click', () => { cerrarMenus(); $('#contextual').hidden = true; });
+
+  // Adjuntos
+  $('#adjuntar').addEventListener('click', () => $('#archivo').click());
+  $('#archivo').addEventListener('change', ev => {
+    elegirAdjunto(ev.target.files[0]);
+    ev.target.value = '';
+  });
+
+  // Filtros avanzados
+  $('#abrir-filtros').addEventListener('click', abrirFiltros);
+  $('#filtros-cerrar').addEventListener('click', cerrarFiltros);
+  $('#filtros-aplicar').addEventListener('click', aplicarFiltros);
+  $('#filtros-limpiar').addEventListener('click', limpiarFiltros);
+  $('#filtros-guardar').addEventListener('click', guardarVistaActual);
+  $('#filtros-anadir').addEventListener('click', () => { condiciones.push(nuevaCondicion()); renderFiltros(); });
+  $$('.filtro-union-btn').forEach(b => b.addEventListener('click', () => { union = b.dataset.union; renderFiltros(); }));
+  $('#filtros').addEventListener('click', ev => { if (ev.target.id === 'filtros') cerrarFiltros(); });
+  renderVistasGuardadas();
 
   // Buscador global
   $('#buscador-campo').addEventListener('input', () => { buscadorActivo = 0; actualizarBuscador(); });
@@ -1100,10 +1379,11 @@ function espera(c) {
   if (estadoEfectivo(c) === 'resolved') return null;
   return horaRelativa(c.esperaDesde);
 }
-/** Semáforo de espera: verde bajo 5 min, ámbar bajo 15, rojo por encima. */
+/** Semáforo de espera, con los umbrales que estén configurados en Ajustes. */
 function nivelEspera(c) {
   const min = (Date.now() - (c.esperaDesde || Date.now())) / 60000;
-  return min < 5 ? 'ok' : min < 15 ? 'warn' : 'danger';
+  const { aviso, critico } = leerAjustes().sla;
+  return min < aviso ? 'ok' : min < critico ? 'warn' : 'danger';
 }
 function fechaLegible(iso) {
   if (!iso) return null;

@@ -75,6 +75,14 @@
           Listas <span class="count" id="c-resolved">0</span></button>
       </div>
 
+      <div class="filtros-cabecera">
+        <button class="btn filtro-btn" id="abrir-filtros" type="button" title="Filtros avanzados (F)">
+          <span data-icono="filtro" data-icono-size="14"></span> Filtros
+        </button>
+      </div>
+      <div class="chip-filtro" id="filtro-activo" hidden></div>
+      <div class="vistas" id="vistas-guardadas" hidden></div>
+
       <label class="orden-wrap">
         <span>Ordenar</span>
         <select id="orden" aria-label="Ordenar conversaciones">
@@ -119,11 +127,16 @@
         <div class="rapidas" id="rapidas" hidden role="listbox" aria-label="Respuestas rápidas"></div>
         <div class="menciones" id="menciones" hidden role="listbox" aria-label="Mencionar a un compañero"></div>
         <div class="cita" id="cita" hidden></div>
+        <div class="adjunto-pendiente" id="adjunto-pendiente" hidden></div>
         <div class="composer-tabs" role="tablist">
           <button class="composer-tab" role="tab" aria-selected="true"  data-modo="responder">Responder al paciente</button>
           <button class="composer-tab nota" role="tab" aria-selected="false" data-modo="nota">Nota privada</button>
         </div>
         <div class="composer-body">
+          <button class="btn adjuntar" id="adjuntar" type="button" title="Adjuntar archivo" aria-label="Adjuntar archivo">
+            <span data-icono="mas" data-icono-size="17"></span>
+          </button>
+          <input type="file" id="archivo" hidden accept="image/*,.pdf,.txt">
           <textarea id="composer-texto" rows="1" placeholder="Escribe tu respuesta…   (/ para respuestas rápidas)" aria-label="Mensaje"></textarea>
           <button class="btn primary" id="enviar" type="button">Enviar</button>
         </div>
@@ -166,6 +179,32 @@
   </div>
 
   <div class="menu-panel contextual" id="contextual" hidden role="menu"></div>
+
+  <div class="filtros" id="filtros" hidden role="dialog" aria-label="Filtros avanzados">
+    <div class="filtros-caja">
+      <div class="filtros-head">
+        <strong>Filtros avanzados</strong>
+        <div class="filtros-union" role="tablist" aria-label="Combinar condiciones">
+          <button class="filtro-union-btn" role="tab" aria-selected="true"  data-union="y" type="button">Todas (y)</button>
+          <button class="filtro-union-btn" role="tab" aria-selected="false" data-union="o" type="button">Alguna (o)</button>
+        </div>
+        <button class="btn" id="filtros-cerrar" type="button" aria-label="Cerrar">✕</button>
+      </div>
+
+      <div class="filtros-condiciones" id="filtros-condiciones"></div>
+
+      <button class="btn filtros-anadir" id="filtros-anadir" type="button">+ Añadir condición</button>
+
+      <div class="filtros-resumen" id="filtros-resumen"></div>
+
+      <div class="filtros-pie">
+        <button class="btn" id="filtros-limpiar" type="button">Limpiar</button>
+        <div class="spacer"></div>
+        <button class="btn" id="filtros-guardar" type="button">Guardar como vista</button>
+        <button class="btn primary" id="filtros-aplicar" type="button">Aplicar</button>
+      </div>
+    </div>
+  </div>
 
   <div class="buscador" id="buscador" hidden role="dialog" aria-label="Buscador global">
     <div class="buscador-caja">

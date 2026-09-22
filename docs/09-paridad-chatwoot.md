@@ -36,14 +36,19 @@ Conversaciones · Pacientes · Informes · Ajustes — todas funcionales sobre d
 
 Ordenado por lo que más se nota en el día a día de un centro de imágenes:
 
-### Alto valor
-| Función | Qué es en Chatwoot | Por qué importa aquí |
+### Alto valor — resueltas en esta tanda
+| Función | Estado |
+|---|---|
+| **Filtros avanzados** | ✅ 15 atributos, 9 operadores, unión Y/O |
+| **Vistas guardadas** | ✅ con nombre, persistentes, borrables |
+| **Adjuntos** | ✅ imágenes y archivos, con el límite que impone el navegador |
+| **SLA configurable** | ✅ umbrales editables desde Ajustes |
+| **Exportar transcripción** | ✅ descarga en texto, notas y adjuntos incluidos |
+
+### Alto valor — sigue faltando
+| Función | Qué es en Chatwoot | Por qué necesita backend |
 |---|---|---|
-| **Adjuntos** | `SharedAttachments`, subida en `ReplyBox` | Los pacientes mandan fotos de su orden médica. Hoy no hay forma de recibirlas |
-| **Automatización** | `settings/automation` — reglas *si esto, entonces aquello* | Auto-etiquetar, auto-asignar por estudio o aseguradora sin intervención |
-| **Filtros avanzados** | `advancedFilterItems` — condiciones combinables | "RM pendientes de ASSA sin autorización" |
-| **Vistas guardadas** | `customviews` | Guardar ese filtro como carpeta propia |
-| **SLA configurable** | `settings/sla` — políticas con umbrales | Hoy el semáforo tiene umbrales fijos en el código |
+| **Automatización** | `settings/automation` — reglas *si esto, entonces aquello* | Alguien tiene que evaluar las reglas cuando nadie mira la pantalla |
 
 ### Valor medio
 | Función | Qué es en Chatwoot |
@@ -60,12 +65,19 @@ Ordenado por lo que más se nota en el día a día de un centro de imágenes:
 ### Fuera de alcance por ahora
 Equipos y roles personalizados, Help Center, integraciones (Shopify, Linear…), Captain (su copiloto de IA — nosotros tenemos el nuestro), llamadas de voz, facturación.
 
-## El límite real
+## Dónde está el techo del frontend
 
-Ninguna de las que faltan es difícil por sí sola. Lo que las bloquea es el mismo cuello de botella de siempre:
+Se exprimió hasta donde da. Lo que queda no es difícil: es que **el navegador no es el sitio**.
 
-> **Todo vive en `localStorage` del navegador.**
+> **Todo vive en `localStorage`.**
 
-Sin backend no hay adjuntos (no hay dónde guardarlos), ni automatización (no hay quién evalúe las reglas cuando nadie mira), ni auditoría real, ni bandeja compartida entre dos personas. Las plantillas de WhatsApp y las campañas necesitan además el canal conectado.
+| Lo que no se puede hacer aquí | Por qué |
+|---|---|
+| Automatización | Nadie evalúa las reglas si la pestaña está cerrada |
+| Bandeja compartida | Dos agentes en dos equipos no se ven |
+| Auditoría real | Un registro que el propio usuario puede borrar no es auditoría |
+| Adjuntos de verdad | `localStorage` ronda los 5 MB **en total**: por eso el límite por archivo es de 400 KB y se avisa al superarlo |
+| Plantillas de WhatsApp y campañas | Necesitan además el canal conectado |
+| Informes con rango de fechas | Solo existe lo de esta sesión |
 
-De las cinco de alto valor, **filtros avanzados y vistas guardadas** son las únicas que se pueden hacer enteras en el frontend. Las otras tres piden backend.
+Los adjuntos son el ejemplo más claro del techo: **funcionan**, pero con un límite que en producción sería absurdo. La pieza está hecha; lo que falta es dónde guardar el archivo.

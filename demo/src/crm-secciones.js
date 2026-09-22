@@ -6,7 +6,7 @@
    ============================================================ */
 
 import { listarConversaciones, estadoEfectivo } from './bus.js';
-import { AGENTES, EQUIPOS, LABELS, RESPUESTAS_RAPIDAS, agentePorId, tonoLabel } from './crm-data.js';
+import { AGENTES, EQUIPOS, LABELS, RESPUESTAS_RAPIDAS, MACROS, agentePorId, tonoLabel, leerAjustes, guardarAjustes } from './crm-data.js';
 
 /* Paleta de estados, validada con el script de la skill de visualización
    en ambos modos (banda de luminosidad, croma, separación CVD y contraste).
@@ -213,8 +213,41 @@ export function renderInformes(contenedor) {
 /* ============================================================
    Ajustes
    ============================================================ */
-export function renderAjustes(contenedor) {
+export function renderAjustes(contenedor, alCambiar) {
+  const aj = leerAjustes();
   contenedor.innerHTML = `
+    <section class="bloque">
+      <h3>Tiempos de respuesta (SLA)</h3>
+      <div class="crm-card ajuste-sla">
+        <p class="ajuste-texto">El reloj de cada conversación cambia de color según lo que lleve esperando respuesta.</p>
+        <div class="ajuste-fila">
+          <label for="sla-aviso"><span class="espera warn">ámbar</span> a partir de</label>
+          <input type="number" id="sla-aviso" min="1" max="120" value="${aj.sla.aviso}"> <span>min</span>
+        </div>
+        <div class="ajuste-fila">
+          <label for="sla-critico"><span class="espera danger">rojo</span> a partir de</label>
+          <input type="number" id="sla-critico" min="2" max="240" value="${aj.sla.critico}"> <span>min</span>
+        </div>
+        <div class="ajuste-fila">
+          <label for="adj-max">Tamaño máximo de adjunto</label>
+          <input type="number" id="adj-max" min="50" max="2000" step="50" value="${aj.adjuntoMaxKB}"> <span>KB</span>
+        </div>
+        <button class="btn primary" id="guardar-ajustes" type="button">Guardar</button>
+        <span class="ajuste-aviso" id="ajuste-aviso" hidden>Guardado</span>
+      </div>
+    </section>
+
+    <section class="bloque">
+      <h3>Macros <span class="contador">${MACROS.length}</span></h3>
+      <div class="cards">
+        ${MACROS.map(m => `<div class="card">
+          <strong>${esc(m.nombre)}</strong>
+          <span>${esc(m.descripcion)}</span>
+          <span class="macro-pasos">${m.acciones.map(a => `<code>${esc(a.tipo)}</code>`).join(' → ')}</span>
+        </div>`).join('')}
+      </div>
+    </section>
+
     <section class="bloque">
       <h3>Equipo</h3>
       <div class="tabla">
@@ -256,7 +289,25 @@ export function renderAjustes(contenedor) {
       </div>
     </section>
 
-    <p class="nota-pie">En esta demostración los ajustes son de solo lectura: viven en <code>demo/src/crm-data.js</code>. En producción serían editables y se guardarían en la base de datos.</p>`;
+    <p class="nota-pie">Los tiempos de respuesta y el límite de adjuntos se guardan en este navegador. El resto (equipo, labels, macros y respuestas rápidas) vive en <code>demo/src/crm-data.js</code>; en producción sería editable y se guardaría en la base de datos.</p>`;
+
+  const guardar = contenedor.querySelector('#guardar-ajustes');
+  if (guardar) guardar.addEventListener('click', () => {
+    const aviso = Number(contenedor.querySelector('#sla-aviso').value);
+    const critico = Number(contenedor.querySelector('#sla-critico').value);
+    if (!(aviso > 0) || !(critico > aviso)) {
+      alert('El umbral rojo tiene que ser mayor que el ámbar.');
+      return;
+    }
+    guardarAjustes({
+      sla: { aviso, critico },
+      adjuntoMaxKB: Number(contenedor.querySelector('#adj-max').value) || 400
+    });
+    const el = contenedor.querySelector('#ajuste-aviso');
+    el.hidden = false;
+    setTimeout(() => { el.hidden = true; }, 2200);
+    if (alCambiar) alCambiar();
+  });
 }
 
 /* ---------- Utilidades ---------- */

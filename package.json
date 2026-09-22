@@ -7,10 +7,13 @@
   "scripts": {
     "start": "node server/index.js",
     "test": "node demo/tests.mjs",
-    "test:loop": "node server/tests-loop.mjs"
+    "test:loop": "node server/tests-loop.mjs",
+    "test:filtros": "node demo/tests-filtros.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

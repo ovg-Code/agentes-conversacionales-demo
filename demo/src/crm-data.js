@@ -168,6 +168,35 @@ export const POSPONER = [
   { id: 'semana',  nombre: 'Próxima semana',  minutos: 60 * 24 * 7 }
 ];
 
+/* ============================================================
+   Ajustes editables
+   ------------------------------------------------------------
+   Viven en localStorage para que la demo los conserve. En
+   producción serían de la cuenta, como las políticas de SLA de
+   Chatwoot.
+   ============================================================ */
+const CLAVE_AJUSTES = 'openside:ajustes:v1';
+
+export const AJUSTES_POR_DEFECTO = {
+  sla: { aviso: 5, critico: 15 },        // minutos de espera
+  adjuntoMaxKB: 400                       // límite real de localStorage
+};
+
+export function leerAjustes() {
+  try {
+    const guardado = JSON.parse(localStorage.getItem(CLAVE_AJUSTES) || '{}');
+    return { ...AJUSTES_POR_DEFECTO, ...guardado, sla: { ...AJUSTES_POR_DEFECTO.sla, ...(guardado.sla || {}) } };
+  } catch (e) {
+    return { ...AJUSTES_POR_DEFECTO };
+  }
+}
+
+export function guardarAjustes(parcial) {
+  const nuevos = { ...leerAjustes(), ...parcial };
+  try { localStorage.setItem(CLAVE_AJUSTES, JSON.stringify(nuevos)); } catch (e) { /* sin persistencia */ }
+  return nuevos;
+}
+
 export function agentePorId(id) { return AGENTES.find(a => a.id === id) || null; }
 export function equipoPorId(id) { return EQUIPOS.find(e => e.id === id) || null; }
 export function prioridadPorId(id) { return PRIORIDADES.find(p => p.id === id) || null; }
