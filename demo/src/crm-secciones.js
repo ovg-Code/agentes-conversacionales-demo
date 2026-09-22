@@ -19,7 +19,12 @@ export const COLOR_ESTADO = {
 const NOMBRE_ESTADO = { pending: 'Agente virtual', open: 'Con una persona', resolved: 'Resueltas', snoozed: 'Pospuestas' };
 
 function paleta() {
-  return document.documentElement.getAttribute('data-theme') === 'dark' ? COLOR_ESTADO.oscuro : COLOR_ESTADO.claro;
+  const attr = document.documentElement.getAttribute('data-theme');
+  if (attr === 'dark') return COLOR_ESTADO.oscuro;
+  if (attr === 'light') return COLOR_ESTADO.claro;
+  // Sin elección explícita manda la preferencia del sistema.
+  const oscuro = typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches;
+  return oscuro ? COLOR_ESTADO.oscuro : COLOR_ESTADO.claro;
 }
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

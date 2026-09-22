@@ -102,6 +102,50 @@
 }
 
 /* ============ Modo oscuro ============ */
+/* Se declara dos veces a propósito: por preferencia del sistema (salvo que
+   el usuario haya elegido claro a mano) y por el atributo que pone el
+   conmutador. Así no hay destello antes de que cargue el JS. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-app:    #0F1620;
+    --surface-panel:  #161F2A;
+    --surface-sunken: #1D2834;
+    --surface-border: #2A3744;
+    --text-primary:   #E7EDF3;
+    --text-secondary: #94A5B4;
+    --text-inverse:   #0F1620;
+
+    --os-blue-600: #3D9BE0;
+    --os-blue-700: #59ACE8;
+    --os-blue-100: #16293B;
+    --os-blue-200: #1E3A52;
+    --os-cyan-100: #10313A;
+    --sem-success: #35C88B;
+    --sem-warning: #E0A44A;
+    --sem-danger:  #F0655B;
+    --sem-ai:      #A688F0;
+    --sem-human:   #3FB7B5;
+
+    --e-1: 0 1px 1px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.34);
+    --e-2: 0 1px 2px rgba(0,0,0,.30), 0 4px 14px -2px rgba(0,0,0,.45);
+    --e-3: 0 2px 6px rgba(0,0,0,.32), 0 14px 36px -8px rgba(0,0,0,.58);
+
+    --wa-chat-bg:    #0B141A;
+    --wa-panel:      #111B21;
+    --wa-header:     #202C33;
+    --wa-in-bubble:  #202C33;
+    --wa-out-bubble: #005C4B;
+    --wa-text:       #E9EDEF;
+    --wa-text-2:     #8696A0;
+    --wa-link:       #53BDEB;
+    --wa-composer:   #202C33;
+    --wa-divider:    rgba(233,237,239,.10);
+    --wa-chip:       #202C33;
+    --wa-chip-text:  #53BDEB;
+    --wa-shadow:     0 1px .5px rgba(0,0,0,.30);
+  }
+}
+
 :root[data-theme="dark"] {
   --surface-app:    #0F1620;
   --surface-panel:  #161F2A;
