@@ -99,6 +99,67 @@ export const RESPUESTAS_RAPIDAS = [
   }
 ];
 
+/**
+ * Macros: secuencias de acciones que se aplican de una vez.
+ * El modelo es el de Chatwoot — una lista de acciones tipadas que se
+ * ejecutan en orden — con los tipos que tienen sentido aquí.
+ *
+ * Tipos: asignar_agente · asignar_equipo · anadir_label · quitar_label
+ *        prioridad · responder · nota · posponer · resolver · devolver_bot
+ */
+export const MACROS = [
+  {
+    id: 'derivar-rm',
+    nombre: 'Derivar a tecnología RM',
+    descripcion: 'Screening con hallazgos: etiqueta, sube prioridad y pasa al tecnólogo.',
+    acciones: [
+      { tipo: 'anadir_label', valor: 'screening-bloqueado' },
+      { tipo: 'prioridad', valor: 'high' },
+      { tipo: 'asignar_equipo', valor: 'tecnologia_rm' },
+      { tipo: 'nota', valor: 'Derivada a tecnología RM por hallazgo en el screening de seguridad.' }
+    ]
+  },
+  {
+    id: 'gestionar-autorizacion',
+    nombre: 'Pedir autorización al seguro',
+    descripcion: 'Explica la autorización previa, etiqueta y pasa a convenios.',
+    acciones: [
+      { tipo: 'anadir_label', valor: 'seguro' },
+      { tipo: 'responder', valor: 'Tu aseguradora requiere autorización previa para este estudio. Gestiónala con ellos usando tu orden médica y avísanos por aquí cuando la tengas.' },
+      { tipo: 'asignar_equipo', valor: 'seguros' },
+      { tipo: 'posponer', valor: 1440 }
+    ]
+  },
+  {
+    id: 'falta-orden',
+    nombre: 'Falta orden médica',
+    descripcion: 'Pide la orden, etiqueta y pospone un día.',
+    acciones: [
+      { tipo: 'anadir_label', valor: 'requiere-orden' },
+      { tipo: 'responder', valor: 'Para realizar el estudio necesitamos la orden médica de tu doctor. Puedes enviarnos una foto por aquí o traerla impresa el día de la cita.' },
+      { tipo: 'posponer', valor: 1440 }
+    ]
+  },
+  {
+    id: 'cerrar-resuelta',
+    nombre: 'Cerrar como resuelta',
+    descripcion: 'Despide, quita la asignación y resuelve.',
+    acciones: [
+      { tipo: 'responder', valor: '¿Hay algo más en lo que te pueda ayudar? Si no, quedamos atentos por aquí cuando lo necesites.' },
+      { tipo: 'resolver' }
+    ]
+  },
+  {
+    id: 'devolver-al-bot',
+    nombre: 'Devolver al agente virtual',
+    descripcion: 'Quita la asignación y deja que el bot retome.',
+    acciones: [
+      { tipo: 'nota', valor: 'Devuelta al agente virtual tras la intervención humana.' },
+      { tipo: 'devolver_bot' }
+    ]
+  }
+];
+
 /** Opciones de posponer, en minutos. */
 export const POSPONER = [
   { id: '1h',      nombre: '1 hora',          minutos: 60 },

@@ -42,6 +42,9 @@
       <input type="search" id="buscar" placeholder="Buscar por nombre, estudio o cédula" aria-label="Buscar conversaciones">
     </div>
 
+    <button class="ctl" id="abrir-buscador" type="button" title="Buscador global (⌘K)">
+      <span data-icono="buscar" data-icono-size="15"></span> Buscar <kbd class="kbd-inline">⌘K</kbd>
+    </button>
     <div class="spacer"></div>
     <div class="yo" title="Sesión iniciada">
       <div class="conv-avatar" id="yo-avatar" aria-hidden="true">—</div>
@@ -81,6 +84,16 @@
         </select>
       </label>
 
+      <div class="bloque-barra" id="bloque" hidden>
+        <span class="bloque-txt"><b id="bloque-conteo">0</b> <span id="bloque-plural">conversaciones</span></span>
+        <div class="bloque-acciones">
+          <button class="btn" id="bloque-asignarme" type="button" title="Asignármelas">Asignarme</button>
+          <button class="btn" id="bloque-urgente" type="button" title="Marcar urgentes">Urgente</button>
+          <button class="btn" id="bloque-posponer" type="button" title="Posponer 1 hora">Posponer</button>
+          <button class="btn ok" id="bloque-resolver" type="button">Resolver</button>
+          <button class="btn" id="bloque-cancelar" type="button" aria-label="Cancelar selección">✕</button>
+        </div>
+      </div>
       <div class="inbox-list" id="lista" role="list"></div>
     </section>
 
@@ -104,6 +117,8 @@
 
       <div class="composer" id="composer" hidden>
         <div class="rapidas" id="rapidas" hidden role="listbox" aria-label="Respuestas rápidas"></div>
+        <div class="menciones" id="menciones" hidden role="listbox" aria-label="Mencionar a un compañero"></div>
+        <div class="cita" id="cita" hidden></div>
         <div class="composer-tabs" role="tablist">
           <button class="composer-tab" role="tab" aria-selected="true"  data-modo="responder">Responder al paciente</button>
           <button class="composer-tab nota" role="tab" aria-selected="false" data-modo="nota">Nota privada</button>
@@ -149,6 +164,21 @@
     <div id="ajustes"></div>
   </section>
   </div>
+
+  <div class="menu-panel contextual" id="contextual" hidden role="menu"></div>
+
+  <div class="buscador" id="buscador" hidden role="dialog" aria-label="Buscador global">
+    <div class="buscador-caja">
+      <div class="buscador-campo-wrap">
+        <span data-icono="buscar" data-icono-size="17"></span>
+        <input type="search" id="buscador-campo" placeholder="Buscar pacientes, conversaciones y mensajes…" aria-label="Buscar" autocomplete="off">
+        <kbd>Esc</kbd>
+      </div>
+      <div class="buscador-resultados" id="buscador-resultados" role="listbox"></div>
+    </div>
+  </div>
+
+  <div class="aviso" id="aviso" role="status" hidden></div>
 
   <div class="ayuda" id="ayuda" hidden role="dialog" aria-label="Atajos de teclado">
     <div class="ayuda-caja">

@@ -16,12 +16,14 @@ import {
   estadoEfectivo, sinLeer
 } from './bus.js';
 import {
-  YO, AGENTES, EQUIPOS, PRIORIDADES, LABELS, RESPUESTAS_RAPIDAS, POSPONER,
+  YO, AGENTES, EQUIPOS, PRIORIDADES, LABELS, RESPUESTAS_RAPIDAS, POSPONER, MACROS,
   agentePorId, equipoPorId, prioridadPorId, tonoLabel, rellenar
 } from './crm-data.js';
 import { formatearTexto } from './ui.js';
 import { pintarIconos, icono } from './iconos.js';
 import { renderPacientes, renderInformes, renderAjustes } from './crm-secciones.js';
+import { ejecutarMacro, ejecutarEnBloque, ejecutarAccion } from './crm-acciones.js';
+import { renderResultados } from './crm-buscador.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -34,6 +36,12 @@ let modoComposer = 'responder';
 let menuAbierto = null;
 let seccion = 'conversaciones';
 let filtroPacientes = '';
+let seleccion = new Set();       // ids marcados para acciones en bloque
+let citando = null;              // mensaje al que se está respondiendo
+let buscadorActivo = 0;
+let resultadosBusqueda = [];
+let mencionesAbiertas = false;
+let mencionActiva = 0;
 let rapidasAbiertas = false;
 let rapidaActiva = 0;
 
@@ -126,11 +134,13 @@ function renderBandeja() {
     const agente = agentePorId(c.asignadoA);
 
     const fila = document.createElement('button');
-    fila.className = 'conv-row' + (noLeidos ? ' no-leida' : '');
+    fila.className = 'conv-row' + (noLeidos ? ' no-leida' : '') + (seleccion.has(c.id) ? ' marcada' : '');
     fila.type = 'button';
     fila.dataset.id = c.id;
     if (c.id === seleccionada) fila.setAttribute('aria-current', 'true');
     fila.innerHTML = `
+      <span class="conv-check" role="checkbox" aria-checked="${seleccion.has(c.id)}" tabindex="-1"
+            title="Seleccionar para acciones en bloque">${seleccion.has(c.id) ? icono('check', { size: 13 }) : ''}</span>
       <div class="conv-avatar" aria-hidden="true" ${agente ? `style="background:${agente.color}"` : ''}>${iniciales(nombre)}</div>
       <div class="conv-body">
         <div class="conv-head">
@@ -149,9 +159,91 @@ function renderBandeja() {
           ${espera(c) ? `<span class="espera ${nivelEspera(c)}" title="Lleva esperando respuesta">${icono('reloj', { size: 11 })}${espera(c)}</span>` : ''}
         </div>
       </div>`;
-    fila.addEventListener('click', () => seleccionar(c.id));
+    // El recuadro alterna la selección sin abrir la conversación.
+    fila.querySelector('.conv-check').addEventListener('click', ev => {
+      ev.stopPropagation();
+      alternarSeleccion(c.id);
+    });
+    fila.addEventListener('click', ev => {
+      // Ctrl/⌘ o mayúsculas seleccionan en vez de abrir, como en cualquier bandeja.
+      if (ev.metaKey || ev.ctrlKey || ev.shiftKey) { ev.preventDefault(); alternarSeleccion(c.id); return; }
+      seleccionar(c.id);
+    });
+    fila.addEventListener('contextmenu', ev => { ev.preventDefault(); abrirMenuContextual(ev, c); });
     lista.appendChild(fila);
   }
+}
+
+function alternarSeleccion(id) {
+  seleccion.has(id) ? seleccion.delete(id) : seleccion.add(id);
+  renderBandeja();
+  renderBarraBloque();
+}
+
+function limpiarSeleccion() {
+  seleccion.clear();
+  renderBandeja();
+  renderBarraBloque();
+}
+
+function renderBarraBloque() {
+  const barra = $('#bloque');
+  if (!seleccion.size) { barra.hidden = true; return; }
+  barra.hidden = false;
+  $('#bloque-conteo').textContent = seleccion.size;
+  $('#bloque-plural').textContent = seleccion.size === 1 ? 'conversación' : 'conversaciones';
+}
+
+function aplicarEnBloque(accion, descripcion) {
+  const ids = [...seleccion];
+  ejecutarEnBloque(ids, accion);
+  limpiarSeleccion();
+  avisar(`${descripcion} · ${ids.length} ${ids.length === 1 ? 'conversación' : 'conversaciones'}`);
+  refrescar();
+}
+
+/* ---------- Menú contextual ---------- */
+function abrirMenuContextual(ev, c) {
+  cerrarMenus();
+  const m = $('#contextual');
+  const estado = estadoEfectivo(c);
+  const opciones = [
+    { label: 'Abrir', icono: 'mensajes', fn: () => seleccionar(c.id) },
+    { label: seleccion.has(c.id) ? 'Quitar de la selección' : 'Añadir a la selección', icono: 'check', fn: () => alternarSeleccion(c.id) },
+    { sep: true },
+    { label: 'Asignármela', icono: 'usuario-mas', fn: () => tomar(c.id) },
+    { label: 'Marcar urgente', icono: 'circulo-alerta', fn: () => { ejecutarAccion(c.id, { tipo: 'prioridad', valor: 'urgent' }); refrescar(); } },
+    { label: 'Posponer 1 hora', icono: 'campana-dormir', fn: () => { ejecutarAccion(c.id, { tipo: 'posponer', valor: 60 }); refrescar(); } },
+    { sep: true },
+    ...(estado !== 'resolved' ? [{ label: 'Resolver', icono: 'check', fn: () => resolver(c.id) }] : []),
+    ...(estado !== 'pending' ? [{ label: 'Devolver al agente virtual', icono: 'bot', fn: () => { ejecutarAccion(c.id, { tipo: 'devolver_bot' }); refrescar(); } }] : [])
+  ];
+
+  m.innerHTML = opciones.map((o, i) => o.sep
+    ? '<div class="menu-sep"></div>'
+    : `<button class="menu-item" type="button" data-i="${i}">${icono(o.icono, { size: 15 })}<span>${escapar(o.label)}</span></button>`).join('');
+  $$('.menu-item', m).forEach(b => b.addEventListener('click', ev2 => {
+    ev2.stopPropagation();
+    m.hidden = true;
+    opciones[+b.dataset.i].fn();
+  }));
+
+  // Se sitúa donde está el puntero, sin salirse de la ventana.
+  m.hidden = false;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(ev.clientX, innerWidth - r.width - 8) + 'px';
+  m.style.top = Math.min(ev.clientY, innerHeight - r.height - 8) + 'px';
+  menuAbierto = m;
+}
+
+/* ---------- Aviso efímero ---------- */
+let temporizadorAviso = null;
+function avisar(texto) {
+  const el = $('#aviso');
+  el.textContent = texto;
+  el.hidden = false;
+  clearTimeout(temporizadorAviso);
+  temporizadorAviso = setTimeout(() => { el.hidden = true; }, 3200);
 }
 
 function textoVacio() {
@@ -199,6 +291,7 @@ function renderConversacion() {
   renderHilo(c, thread);
 
   $('#composer').hidden = estado === 'resolved';
+  renderCita();
   actualizarPistaComposer(estado);
   renderContexto(c, estado);
 
@@ -237,6 +330,15 @@ function renderAcciones(c, estado) {
       nota(c.id, 'Devuelta al agente virtual.'); refrescar();
     }));
   }
+  cont.appendChild(menu('Macros', MACROS.map(m => ({
+    label: m.nombre, detalle: m.descripcion,
+    fn: () => {
+      const r = ejecutarMacro(c.id, m.id);
+      if (r) avisar(`Macro «${r.macro.nombre}»: ${r.hechos.join(' · ')}`);
+      refrescar();
+    }
+  })), 'rayo'));
+
   if (estado !== 'resolved') {
     cont.appendChild(boton('Resolver', 'ok', () => resolver(c.id), 'Marcar como resuelta (E)', 'check'));
   } else {
@@ -276,7 +378,10 @@ function renderHilo(c, thread) {
     const tono = m.privado ? 'warn' : m.autor === 'bot' ? 'ai' : m.autor === 'humano' ? 'human' : 'muted';
     el.innerHTML = `
       ${cambio ? `<div class="msg-meta"><span class="pill ${tono}">${m.privado ? icono('nota', { size: 11 }) : ''}${escapar(quien)}</span><span>${hora(m.ts)}</span></div>` : ''}
-      <div class="msg-bubble" title="${hora(m.ts)}">${formatearTexto(m.texto || '')}</div>`;
+      <div class="msg-bubble" title="${hora(m.ts)}">${m.privado ? '' : ''}${m.responde ? `<span class="respuesta-a"><b>${escapar(m.responde.autor === 'paciente' ? 'Paciente' : m.responde.autor === 'bot' ? 'Sofía' : 'Agente')}</b>${escapar(m.responde.texto.replace(/\*/g, ''))}</span>` : ''}${m.privado ? resaltarMenciones(m.texto || '') : formatearTexto(m.texto || '')}</div>
+      ${m.privado ? '' : `<button class="msg-citar" type="button" title="Responder a este mensaje">${icono('atras', { size: 13 })}Responder</button>`}`;
+    const btnCitar = el.querySelector('.msg-citar');
+    if (btnCitar) btnCitar.addEventListener('click', () => citar(m));
     thread.appendChild(el);
   }
   requestAnimationFrame(() => { thread.scrollTop = thread.scrollHeight; });
@@ -458,12 +563,39 @@ function enviar() {
       cambiarEstado(seleccionada, 'open', YO);
       actualizarCampos(seleccionada, { asignadoA: c.asignadoA || YO, pospuestoHasta: null });
     }
-    publicarMensaje(seleccionada, { autor: 'humano', texto, privado: false });
+    publicarMensaje(seleccionada, {
+      autor: 'humano', texto, privado: false,
+      responde: citando ? { texto: (citando.texto || '').slice(0, 140), autor: citando.autor } : null
+    });
+    citando = null;
+    renderCita();
   }
   ta.value = '';
   ta.style.height = 'auto';
   cerrarRapidas();
   refrescar();
+}
+
+function citar(m) {
+  citando = { id: m.id, texto: m.texto, autor: m.autor };
+  cambiarModo('responder');
+  renderCita();
+  $('#composer-texto').focus();
+}
+
+function renderCita() {
+  const caja = $('#cita');
+  if (!citando) { caja.hidden = true; return; }
+  const quien = citando.autor === 'paciente' ? 'Paciente'
+    : citando.autor === 'bot' ? 'Sofía' : 'Agente';
+  caja.hidden = false;
+  caja.innerHTML = `
+    <div class="cita-cuerpo">
+      <span class="cita-quien">${escapar(quien)}</span>
+      <span class="cita-txt">${escapar((citando.texto || '').replace(/\*/g, '').slice(0, 120))}</span>
+    </div>
+    <button class="cita-cerrar" type="button" aria-label="Quitar la cita">${icono('cerrar', { size: 14 })}</button>`;
+  caja.querySelector('.cita-cerrar').addEventListener('click', () => { citando = null; renderCita(); });
 }
 
 function cambiarModo(modo) {
@@ -492,6 +624,68 @@ function actualizarPistaComposer(estado) {
 /* ============================================================
    Respuestas rápidas
    ============================================================ */
+/* ---------- Menciones @ en notas privadas ---------- */
+function agentesMencionables(fragmento) {
+  const q = normalizarTexto(fragmento);
+  return AGENTES.filter(a => !q || normalizarTexto(a.nombre).includes(q) || normalizarTexto(a.rol).includes(q));
+}
+
+/** Devuelve el @fragmento que hay justo antes del cursor, si lo hay. */
+function mencionEnCurso(ta) {
+  const hasta = ta.value.slice(0, ta.selectionStart);
+  const m = hasta.match(/@([\p{L}]*)$/u);
+  return m ? { fragmento: m[1], inicio: hasta.length - m[0].length } : null;
+}
+
+function renderMenciones(ta) {
+  const cont = $('#menciones');
+  const ctx = mencionEnCurso(ta);
+  if (!ctx || modoComposer !== 'nota') { cerrarMenciones(); return; }
+  const lista = agentesMencionables(ctx.fragmento);
+  if (!lista.length) { cerrarMenciones(); return; }
+  mencionActiva = Math.min(mencionActiva, lista.length - 1);
+  cont.innerHTML = lista.map((a, i) => `
+    <button class="mencion${i === mencionActiva ? ' activa' : ''}" type="button" data-i="${i}">
+      <span class="conv-avatar" style="background:${a.color}" aria-hidden="true">${iniciales(a.nombre)}</span>
+      <span class="mencion-txt"><b>${escapar(a.nombre)}</b><span>${escapar(a.rol)}</span></span>
+    </button>`).join('');
+  $$('.mencion', cont).forEach(b => b.addEventListener('click', () => insertarMencion(ta, lista[+b.dataset.i])));
+  cont.hidden = false;
+  mencionesAbiertas = true;
+}
+
+function insertarMencion(ta, agente) {
+  const ctx = mencionEnCurso(ta);
+  if (!ctx) return;
+  const antes = ta.value.slice(0, ctx.inicio);
+  const despues = ta.value.slice(ta.selectionStart);
+  const texto = `@${agente.nombre} `;
+  ta.value = antes + texto + despues;
+  const pos = (antes + texto).length;
+  ta.setSelectionRange(pos, pos);
+  cerrarMenciones();
+  ta.focus();
+}
+
+function cerrarMenciones() {
+  $('#menciones').hidden = true;
+  mencionesAbiertas = false;
+  mencionActiva = 0;
+}
+
+/** En una nota, @Nombre se destaca para que el mencionado lo vea. */
+function resaltarMenciones(texto) {
+  let html = escapar(texto);
+  for (const a of AGENTES) {
+    html = html.split('@' + escapar(a.nombre)).join(`<span class="mencion-chip">@${escapar(a.nombre)}</span>`);
+  }
+  return html.replace(/\n/g, '<br>');
+}
+
+function normalizarTexto(s) {
+  return String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function filtrarRapidas(texto) {
   const q = texto.replace(/^\//, '').toLowerCase().trim();
   return RESPUESTAS_RAPIDAS.filter(r =>
@@ -592,14 +786,34 @@ const ATAJOS = [
   ['p', 'Devolver al agente virtual'],
   ['n', 'Escribir nota privada'],
   ['r', 'Responder al paciente'],
+  ['⌘K / Ctrl+K', 'Buscador global'],
+  ['x', 'Marcar o desmarcar la conversación'],
+  ['m', 'Aplicar una macro'],
+  ['clic derecho', 'Menú de acciones rápidas'],
   ['/', 'Buscar en la bandeja'],
   ['?', 'Esta ayuda'],
   ['Esc', 'Cerrar menús y ayuda']
 ];
 
 function manejarAtajo(ev) {
+  // El buscador captura las flechas mientras está abierto.
+  if (!$('#buscador').hidden) {
+    const n = resultadosBusqueda.length;
+    if (ev.key === 'ArrowDown') { buscadorActivo = Math.min(buscadorActivo + 1, n - 1); actualizarBuscador(); ev.preventDefault(); return; }
+    if (ev.key === 'ArrowUp')   { buscadorActivo = Math.max(buscadorActivo - 1, 0); actualizarBuscador(); ev.preventDefault(); return; }
+    if (ev.key === 'Enter' && n) { irAResultado(resultadosBusqueda[buscadorActivo]); ev.preventDefault(); return; }
+  }
   const enCampo = /input|textarea/i.test(ev.target.tagName);
-  if (ev.key === 'Escape') { cerrarMenus(); cerrarRapidas(); $('#ayuda').hidden = true; ev.target.blur?.(); return; }
+  if ((ev.key === 'k' || ev.key === 'K') && (ev.metaKey || ev.ctrlKey)) {
+    ev.preventDefault(); abrirBuscador(); return;
+  }
+  if (ev.key === 'Escape') {
+    cerrarMenus(); cerrarRapidas(); cerrarMenciones(); cerrarBuscador();
+    $('#ayuda').hidden = true; $('#contextual').hidden = true;
+    if (seleccion.size) limpiarSeleccion();
+    if (citando) { citando = null; renderCita(); }
+    ev.target.blur?.(); return;
+  }
   if (enCampo) return;
   if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
   if (seccion !== 'conversaciones' && ev.key !== '?') return;
@@ -620,6 +834,11 @@ function manejarAtajo(ev) {
       } break;
     case 'n': if (seleccionada) { cambiarModo('nota'); $('#composer-texto').focus(); ev.preventDefault(); } break;
     case 'r': if (seleccionada) { cambiarModo('responder'); $('#composer-texto').focus(); ev.preventDefault(); } break;
+    case 'x': if (seleccionada) { alternarSeleccion(seleccionada); ev.preventDefault(); } break;
+    case 'm': if (seleccionada) {
+        const btn = $$('.menu-wrap .btn').find(b => b.textContent.includes('Macros'));
+        if (btn) { btn.click(); ev.preventDefault(); }
+      } break;
     case '/': $('#buscar').focus(); ev.preventDefault(); break;
     case '?': $('#ayuda').hidden = !$('#ayuda').hidden; ev.preventDefault(); break;
   }
@@ -639,6 +858,46 @@ function refrescar() {
     renderBandeja();
     renderConversacion();
   });
+}
+
+/* ============================================================
+   Buscador global
+   ============================================================ */
+function abrirBuscador() {
+  const caja = $('#buscador');
+  caja.hidden = false;
+  const campo = $('#buscador-campo');
+  campo.value = '';
+  buscadorActivo = 0;
+  resultadosBusqueda = renderResultados($('#buscador-resultados'), '', 0);
+  campo.focus();
+}
+
+function cerrarBuscador() { $('#buscador').hidden = true; }
+
+function actualizarBuscador() {
+  const q = $('#buscador-campo').value;
+  resultadosBusqueda = renderResultados($('#buscador-resultados'), q, buscadorActivo);
+  $$('#buscador-resultados .resultado').forEach(b =>
+    b.addEventListener('click', () => irAResultado(resultadosBusqueda[+b.dataset.i])));
+}
+
+function irAResultado(r) {
+  if (!r) return;
+  cerrarBuscador();
+  if (seccion !== 'conversaciones') irA('conversaciones');
+  // El resultado puede estar en una vista que ahora mismo no se muestra.
+  const c = obtenerConversacion(r.idConversacion);
+  if (c && !conversacionesVisibles().some(x => x.id === r.idConversacion)) {
+    vista = 'todas';
+    $$('.inbox-filter').forEach(x => x.setAttribute('aria-selected', String(x.dataset.vista === 'todas')));
+    const estado = estadoEfectivo(c);
+    if (estado === 'resolved' || estado === 'snoozed') {
+      vista = estado;
+      $$('.inbox-filter').forEach(x => x.setAttribute('aria-selected', String(x.dataset.vista === estado)));
+    }
+  }
+  seleccionar(r.idConversacion);
 }
 
 /* ============================================================
@@ -688,6 +947,7 @@ function montar() {
   $$('.inbox-filter').forEach(b => b.addEventListener('click', () => {
     vista = b.dataset.vista;
     $$('.inbox-filter').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    limpiarSeleccion();
     renderBandeja();
   }));
 
@@ -703,7 +963,8 @@ function montar() {
   ta.addEventListener('input', () => {
     ta.style.height = 'auto';
     ta.style.height = Math.min(160, ta.scrollHeight) + 'px';
-    if (ta.value.startsWith('/')) renderRapidas(ta.value); else cerrarRapidas();
+    if (ta.value.startsWith('/')) { renderRapidas(ta.value); cerrarMenciones(); }
+    else { cerrarRapidas(); renderMenciones(ta); }
   });
   ta.addEventListener('keydown', ev => {
     if (rapidasAbiertas) {
@@ -713,6 +974,13 @@ function montar() {
       if (ev.key === 'Enter' && !ev.shiftKey) { insertarRapida(lista[rapidaActiva]); ev.preventDefault(); return; }
       if (ev.key === 'Escape') { cerrarRapidas(); ev.preventDefault(); return; }
     }
+    if (mencionesAbiertas) {
+      const lista = agentesMencionables(mencionEnCurso(ta)?.fragmento || '');
+      if (ev.key === 'ArrowDown') { mencionActiva = Math.min(mencionActiva + 1, lista.length - 1); renderMenciones(ta); ev.preventDefault(); return; }
+      if (ev.key === 'ArrowUp')   { mencionActiva = Math.max(mencionActiva - 1, 0); renderMenciones(ta); ev.preventDefault(); return; }
+      if (ev.key === 'Enter' && !ev.shiftKey) { insertarMencion(ta, lista[mencionActiva]); ev.preventDefault(); return; }
+      if (ev.key === 'Escape') { cerrarMenciones(); ev.preventDefault(); return; }
+    }
     if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); enviar(); }
   });
 
@@ -721,7 +989,19 @@ function montar() {
   $('#ayuda-lista').innerHTML = ATAJOS.map(([k, d]) =>
     `<div class="atajo"><kbd>${escapar(k)}</kbd><span>${escapar(d)}</span></div>`).join('');
   document.addEventListener('keydown', manejarAtajo);
-  document.addEventListener('click', () => cerrarMenus());
+  document.addEventListener('click', () => { cerrarMenus(); $('#contextual').hidden = true; });
+
+  // Buscador global
+  $('#buscador-campo').addEventListener('input', () => { buscadorActivo = 0; actualizarBuscador(); });
+  $('#buscador').addEventListener('click', ev => { if (ev.target.id === 'buscador') cerrarBuscador(); });
+  $('#abrir-buscador').addEventListener('click', abrirBuscador);
+
+  // Acciones en bloque
+  $('#bloque-cancelar').addEventListener('click', limpiarSeleccion);
+  $('#bloque-resolver').addEventListener('click', () => aplicarEnBloque({ tipo: 'resolver' }, 'Resueltas'));
+  $('#bloque-asignarme').addEventListener('click', () => aplicarEnBloque({ tipo: 'asignar_agente', valor: YO }, 'Asignadas a ti'));
+  $('#bloque-posponer').addEventListener('click', () => aplicarEnBloque({ tipo: 'posponer', valor: 60 }, 'Pospuestas 1 hora'));
+  $('#bloque-urgente').addEventListener('click', () => aplicarEnBloque({ tipo: 'prioridad', valor: 'urgent' }, 'Marcadas urgentes'));
 
   // Rail de navegación
   $$('.rail-btn').forEach(b => b.addEventListener('click', () => irA(b.dataset.seccion)));
