@@ -234,3 +234,82 @@ Cada estado define: **qué herramientas están permitidas**, qué slots faltan y
 ## 6. Implementación
 
 Los tokens de este documento viven en [`demo/assets/tokens.css`](../demo/assets/tokens.css) como variables CSS. La UI de WhatsApp está en `whatsapp.css` y la consola en `console.css`. Cualquier cambio de marca se hace **solo en `tokens.css`**.
+
+
+---
+
+# Capa shadcn
+
+La línea gráfica sigue siendo la de Chatwoot sobre Radix Colors. Lo que se
+añadió encima es la **gramática de componentes de shadcn/ui**, que es lo que
+hace que una interfaz de 2026 se lea como tal.
+
+shadcn no es una librería que se instala: es un conjunto de decisiones que se
+copian al proyecto. Aquí están copiadas a CSS plano en `demo/assets/shadcn.css`,
+sobre las escalas Radix que ya teníamos —que son las mismas que shadcn usa por
+debajo—. Por eso encajó sin repintar nada.
+
+## Las cuatro decisiones que hacen que algo "se vea shadcn"
+
+1. **Un solo `--radius`.** Todo lo demás se calcula a partir de él:
+   `--r-md: calc(var(--radius) - 2px)` para botones e inputs, `--r-xl` para
+   tarjetas. Es lo que hace que un botón, un campo y una tarjeta parezcan de la
+   misma familia en vez de tres piezas que coinciden por casualidad.
+
+2. **El anillo de foco.** 2px de color con 2px de separación, sobre
+   `:focus-visible` y no `:focus`, para que aparezca al tabular y no al hacer
+   clic. Es la firma. Sin él cualquier interfaz parece de 2015.
+
+3. **Sombras casi invisibles.** La jerarquía la da el borde, no la elevación.
+   `--shadow-xs` es `0 1px 2px rgb(… / .05)`: se nota que está, no se ve.
+
+4. **`muted-foreground` para todo lo secundario.** Nunca un gris arbitrario. Es
+   lo que permite leer la jerarquía sin recurrir a más tamaños de letra.
+
+## Los tokens
+
+Los mismos colores de siempre, nombrados como los nombra shadcn: `--background`,
+`--foreground`, `--card`, `--popover`, `--primary`, `--secondary`, `--muted`,
+`--accent`, `--destructive`, `--border`, `--input`, `--ring`. No es azúcar
+sintáctico: es lo que permite escribir un componente mirando su documentación y
+que aquí signifique lo mismo.
+
+Como apuntan a las escalas Radix, el modo oscuro se recalcula solo. Lo único
+que hubo que redefinir a mano son las sombras, que en oscuro dejan de ser grises
+para ser negras de verdad.
+
+## Componentes
+
+Button (con sus variantes default, secondary, outline, ghost, destructive y sus
+tamaños), Input, Select, Badge, Card, Tabs, Separator, Kbd, Skeleton, Alert,
+Switch, Tooltip, Toast, Popover, Table y Progress.
+
+Tres son nuevos y cambian cómo se usa el CRM:
+
+**Paleta de comandos (`⌘K`).** Antes ⌘K abría un buscador. Un buscador contesta
+"¿dónde está esto?"; una paleta contesta además "¿qué puedo hacer?". Tres
+grupos: Acciones, Navegación, Resultados. Las acciones dependen del contexto —
+sin conversación abierta, las suyas no aparecen, porque una paleta que ofrece lo
+que no se puede hacer enseña a ignorarla. El filtro es por subsecuencia, como
+cmdk: `agnd` encuentra `Agenda`. Con una salvedad que se vio en pantalla: si
+alguna opción contiene el texto literalmente, las que solo casan por
+subsecuencia se descartan, y esa decisión se toma mirando todos los grupos a la
+vez. Si no, `agend` listaba *Tomar la conversación abierta* por encima de *Ir a
+Agenda*.
+
+**Toasts (Sonner).** Abajo a la derecha, apilados, máximo tres. Sustituyen a la
+píldora centrada de antes, que tapaba el compositor justo después de escribir.
+Un aviso de error no se va solo: si algo falló, la persona tiene que poder
+leerlo cuando vuelva de mirar otra cosa. Y si el cursor está encima, el
+temporizador se detiene.
+
+**Skeletons.** Mientras Calendar contesta no se enseña una agenda vacía: una
+agenda vacía es una afirmación —"no hay nada hoy"— y ahí sería falsa. El
+esqueleto dice "todavía no lo sé", que es lo cierto. Pulso de opacidad y no
+barrido, porque el barrido llama la atención sobre la espera.
+
+## Lo que la capa no toca
+
+El simulador de WhatsApp. Dentro del teléfono manda WhatsApp: sus colores, sus
+burbujas y su propio anillo de foco en verde. Un anillo iris ahí rompería la
+ilusión que esa pantalla sostiene.

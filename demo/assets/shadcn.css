@@ -1,0 +1,563 @@
+/* ============================================================
+   Capa shadcn
+   ------------------------------------------------------------
+   shadcn/ui no es una librería que se instala: es un conjunto de
+   decisiones que se copian al proyecto. Aquí están copiadas a CSS
+   plano, sobre las escalas Radix que ya teníamos —que son las
+   mismas que usa shadcn por debajo—.
+
+   Las cuatro decisiones que hacen que algo "se vea shadcn":
+
+     1. Un solo --radius del que se deriva todo lo demás.
+     2. El anillo de foco: 2px de color con 2px de separación.
+        Es la firma. Sin él, cualquier interfaz parece de 2015.
+     3. Sombras casi invisibles. La jerarquía la da el borde.
+     4. Texto secundario en muted-foreground, nunca en gris puro.
+
+   Este archivo se carga el último: gobierna el cromo compartido
+   sin que haya que tocar el marcado que ya existía.
+   ============================================================ */
+
+/* ============================================================
+   1 · Foco
+   ------------------------------------------------------------
+   Un solo sitio. Se usa :focus-visible y no :focus para que el
+   anillo aparezca al tabular y no al hacer clic con el ratón.
+   ============================================================ */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--r-md);
+}
+/* Dentro del teléfono manda WhatsApp, no nuestro sistema: un
+   anillo iris ahí rompería la ilusión que la pantalla sostiene. */
+.phone :where(button, a, input, textarea, [tabindex]):focus-visible {
+  outline-color: var(--wa-teal);
+  outline-offset: 1px;
+}
+/* Dentro de una lista de resultados el offset recorta al vecino. */
+:where(.cmd-item, .menu-item, .conv-row, .buscador-item):focus-visible {
+  outline-offset: -2px;
+}
+
+/* ============================================================
+   2 · Button
+   ------------------------------------------------------------
+   Altura 36px, texto 14px peso 500, radio --r-md. Las variantes
+   de shadcn: default, secondary, outline, ghost, destructive.
+   Aquí .btn es outline —que es como se usaba— y las demás se
+   piden por clase.
+   ============================================================ */
+.btn,
+.ctl {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--sp-2);
+  height: 36px; padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--background);
+  color: var(--foreground);
+  font-family: inherit; font-size: var(--fs-sm); font-weight: 500;
+  line-height: 1; white-space: nowrap; text-decoration: none;
+  cursor: pointer; user-select: none;
+  box-shadow: var(--shadow-2xs);
+  transition: background-color var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              transform var(--dur-press) var(--ease);
+}
+.ctl { height: 32px; padding: 0 var(--sp-3); font-size: var(--fs-xs); }
+
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover:not(:disabled), .ctl:hover:not(:disabled) {
+    background: var(--accent); color: var(--accent-foreground);
+  }
+}
+.btn:active:not(:disabled), .ctl:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled, .ctl:disabled,
+.btn[aria-disabled="true"], .ctl[aria-disabled="true"] {
+  opacity: .5; pointer-events: none; transform: none;
+}
+
+/* --- variante default (primary) --- */
+.btn.primary, .ctl.primary, .btn-primary {
+  background: var(--primary); color: var(--primary-foreground);
+  border-color: transparent; box-shadow: var(--shadow-xs);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn.primary:hover:not(:disabled), .ctl.primary:hover:not(:disabled), .btn-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--primary) 90%, black);
+    color: var(--primary-foreground);
+  }
+}
+
+/* --- secondary --- */
+.btn-secondary {
+  background: var(--secondary); color: var(--secondary-foreground);
+  border-color: transparent;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--secondary) 80%, var(--foreground) 6%); }
+}
+
+/* --- ghost: sin borde ni fondo hasta que se toca --- */
+.btn-ghost, .ctl.ghost {
+  background: transparent; border-color: transparent; box-shadow: none;
+  color: var(--muted-foreground);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-ghost:hover:not(:disabled), .ctl.ghost:hover:not(:disabled) {
+    background: var(--accent); color: var(--accent-foreground);
+  }
+}
+
+/* --- destructive --- */
+.btn-destructive, .btn.peligro {
+  background: var(--destructive); color: var(--destructive-foreground);
+  border-color: transparent;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-destructive:hover:not(:disabled), .btn.peligro:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--destructive) 90%, black);
+  }
+}
+
+/* --- tonos semánticos, en la gramática outline de shadcn --- */
+.btn.ok {
+  background: transparent; color: var(--sem-success);
+  border-color: color-mix(in srgb, var(--sem-success) 32%, transparent);
+}
+.btn.warn {
+  background: transparent; color: var(--sem-warning);
+  border-color: color-mix(in srgb, var(--sem-warning) 35%, transparent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn.ok:hover:not(:disabled)   { background: var(--sem-success-bg); }
+  .btn.warn:hover:not(:disabled) { background: var(--sem-warning-bg); }
+}
+
+/* --- tamaños --- */
+.btn-sm  { height: 32px; padding: 0 var(--sp-3); font-size: var(--fs-xs); }
+.btn-lg  { height: 40px; padding: 0 var(--sp-6); font-size: var(--fs-base); }
+.btn-icon, .ctl.icon {
+  width: 36px; height: 36px; padding: 0;
+}
+.ctl.icon { width: 32px; height: 32px; }
+.btn.block { width: 100%; }
+.btn svg, .ctl svg { width: 15px; height: 15px; flex: none; }
+
+/* ============================================================
+   3 · Input, Textarea, Select
+   ============================================================ */
+.campo, .sh-input, .sh-textarea {
+  width: 100%;
+  min-height: 36px; padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--input);
+  border-radius: var(--r-md);
+  background: var(--background);
+  color: var(--foreground);
+  font-family: inherit; font-size: var(--fs-sm); line-height: 1.4;
+  box-shadow: var(--shadow-2xs);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.campo::placeholder, .sh-input::placeholder, .sh-textarea::placeholder { color: var(--muted-foreground); }
+.campo:focus, .sh-input:focus, .sh-textarea:focus {
+  outline: none; border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 24%, transparent);
+}
+.campo:disabled { opacity: .5; cursor: default; }
+select.campo {
+  appearance: none; padding-right: 30px;
+  /* La flecha va en el CSS: un select nativo rompe la línea gráfica. */
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 16px) center, calc(100% - 11px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+/* ============================================================
+   4 · Badge
+   ============================================================ */
+.pill, .sh-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px var(--sp-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--secondary); color: var(--secondary-foreground);
+  font-size: 11.5px; font-weight: 500; line-height: 1.45;
+  white-space: nowrap;
+}
+.pill.muted, .sh-badge.muted { background: var(--muted); color: var(--muted-foreground); }
+.pill.outline, .sh-badge.outline { background: transparent; border-color: var(--border); color: var(--foreground); }
+.pill.ok,     .sh-badge.ok     { background: var(--sem-success-bg); color: var(--sem-success); }
+.pill.warn,   .sh-badge.warn   { background: var(--sem-warning-bg); color: var(--sem-warning); }
+.pill.danger, .sh-badge.danger { background: var(--sem-danger-bg);  color: var(--sem-danger); }
+.pill.ai,     .sh-badge.ai     { background: var(--sem-ai-bg);      color: var(--sem-ai); }
+.pill svg, .sh-badge svg { width: 12px; height: 12px; }
+
+/* ============================================================
+   5 · Card
+   ============================================================ */
+.panel-ficha, .crm-card, .sh-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--card); color: var(--card-foreground);
+  box-shadow: var(--shadow-xs);
+}
+.sh-card-head { padding: var(--sp-5) var(--sp-5) 0; }
+.sh-card-title { margin: 0; font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
+.sh-card-desc  { margin: var(--sp-1) 0 0; font-size: var(--fs-sm); color: var(--muted-foreground); }
+.sh-card-body  { padding: var(--sp-5); }
+
+/* ============================================================
+   6 · Tabs y controles segmentados
+   ------------------------------------------------------------
+   El patrón de shadcn: la lista con fondo muted, y la pestaña
+   activa con el fondo del papel y una sombra mínima. Da la
+   sensación de que la activa está encima, no subrayada.
+
+   Se cambian colores, radios y sombra; NO el reparto del ancho.
+   Las filas de filtro de la bandeja reparten el espacio a partes
+   iguales y eso es correcto para una columna estrecha: imponerles
+   el ancho por contenido las hacía saltar de línea.
+   ============================================================ */
+.tabs {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 3px; border: 0;
+  border-radius: var(--r-lg);
+  background: var(--muted);
+}
+.inbox-filters {
+  padding: 3px;
+  border-radius: var(--r-lg);
+  background: var(--muted);
+}
+.tab, .inbox-filter, .composer-tab {
+  appearance: none; border: 0; background: transparent;
+  border-radius: calc(var(--radius) - 3px);
+  color: var(--muted-foreground);
+  font-family: inherit; font-weight: 500;
+  white-space: nowrap; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.tab, .composer-tab { height: 28px; padding: 0 var(--sp-3); font-size: var(--fs-xs); }
+@media (hover: hover) and (pointer: fine) {
+  .tab:hover, .inbox-filter:hover, .composer-tab:hover { color: var(--foreground); background: transparent; }
+}
+.tab[aria-selected="true"], .inbox-filter[aria-selected="true"], .composer-tab[aria-selected="true"] {
+  background: var(--background); color: var(--foreground);
+  box-shadow: var(--shadow-xs);
+}
+.inbox-filter .count { background: var(--secondary); color: var(--muted-foreground); }
+.inbox-filter[aria-selected="true"] .count { background: var(--primary); color: var(--primary-foreground); }
+
+/* ============================================================
+   7 · Separator
+   ============================================================ */
+.sh-sep { height: 1px; margin: var(--sp-4) 0; background: var(--border); border: 0; }
+.sh-sep.vertical { width: 1px; height: auto; align-self: stretch; margin: 0 var(--sp-2); }
+
+/* ============================================================
+   8 · Kbd
+   ------------------------------------------------------------
+   El atajo escrito en la interfaz. Es de las cosas que más
+   contribuyen a que algo parezca una herramienta y no una web.
+   ============================================================ */
+.kbd, kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 5px;
+  border: 1px solid var(--border); border-bottom-width: 2px;
+  border-radius: var(--r-sm);
+  background: var(--muted); color: var(--muted-foreground);
+  font-family: var(--font-sans); font-size: 11px; font-weight: 500;
+  line-height: 1;
+}
+
+/* ============================================================
+   9 · Skeleton
+   ------------------------------------------------------------
+   Pulso de opacidad, no un barrido: el barrido llama la atención
+   sobre la espera, que es justo lo que no interesa.
+   ============================================================ */
+.sh-skeleton {
+  border-radius: var(--r-md);
+  background: var(--muted);
+  animation: sh-pulse 1.6s var(--ease-in-out) infinite;
+}
+@keyframes sh-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .sh-skeleton { animation: none; opacity: .7; } }
+
+/* ============================================================
+   10 · Alert
+   ============================================================ */
+.sh-alert {
+  display: grid; grid-template-columns: auto 1fr; gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  background: var(--card); color: var(--foreground);
+  font-size: var(--fs-sm); line-height: 1.55;
+}
+.sh-alert svg { width: 16px; height: 16px; margin-top: 2px; color: var(--muted-foreground); }
+.sh-alert strong { display: block; margin-bottom: 2px; font-weight: 600; }
+.sh-alert p { margin: 0; color: var(--muted-foreground); }
+.sh-alert.destructive { border-color: color-mix(in srgb, var(--destructive) 40%, transparent); }
+.sh-alert.destructive svg, .sh-alert.destructive strong { color: var(--destructive); }
+
+/* ============================================================
+   11 · Switch
+   ============================================================ */
+.sh-switch {
+  position: relative; flex: none;
+  width: 36px; height: 20px; padding: 0;
+  border: 0; border-radius: var(--r-full);
+  background: var(--input); cursor: pointer;
+  transition: background-color var(--dur-base) var(--ease);
+}
+.sh-switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--background); box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-base) var(--ease);
+}
+.sh-switch[aria-checked="true"] { background: var(--primary); }
+.sh-switch[aria-checked="true"]::after { transform: translateX(16px); }
+.sh-switch:active::after { width: 18px; }
+
+/* ============================================================
+   12 · Tooltip
+   ------------------------------------------------------------
+   CSS puro sobre [data-tip]. Con retardo, porque un tooltip
+   instantáneo persigue al cursor por la pantalla.
+   ============================================================ */
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%) translateY(3px) scale(.96);
+  z-index: 60;
+  padding: 5px var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--foreground); color: var(--background);
+  font-size: 11.5px; font-weight: 500; line-height: 1.3;
+  white-space: nowrap; pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-tip]:hover::after {
+    opacity: 1; transform: translateX(-50%) translateY(0) scale(1);
+    transition-delay: 350ms;
+  }
+}
+[data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+
+/* ============================================================
+   13 · Toast · en la gramática de Sonner
+   ------------------------------------------------------------
+   Abajo a la derecha, apilados, con el borde del sistema y una
+   sombra que apenas se nota. Entran deslizando desde abajo.
+   ============================================================ */
+.sh-toasts {
+  position: fixed; right: var(--sp-4); bottom: var(--sp-4); z-index: 200;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  width: min(360px, calc(100vw - var(--sp-8)));
+  pointer-events: none;
+}
+.sh-toast {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  background: var(--popover); color: var(--popover-foreground);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--fs-sm); line-height: 1.45;
+  pointer-events: auto;
+  animation: sh-toast-in var(--dur-panel) var(--ease-drawer) both;
+}
+.sh-toast.saliendo { animation: sh-toast-out 180ms var(--ease-in-out) both; }
+.sh-toast strong { display: block; font-weight: 560; }
+.sh-toast p { margin: 2px 0 0; color: var(--muted-foreground); font-size: var(--fs-xs); }
+.sh-toast svg { width: 16px; height: 16px; margin-top: 1px; }
+.sh-toast.ok svg     { color: var(--sem-success); }
+.sh-toast.warn svg   { color: var(--sem-warning); }
+.sh-toast.danger svg { color: var(--sem-danger); }
+.sh-toast-x {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  padding: 2px; margin: -2px -4px 0 0; border-radius: var(--r-sm);
+  color: var(--muted-foreground); line-height: 0;
+}
+@media (hover: hover) and (pointer: fine) { .sh-toast-x:hover { color: var(--foreground); background: var(--accent); } }
+@keyframes sh-toast-in  { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes sh-toast-out { to { opacity: 0; transform: translateY(6px) scale(.98); } }
+@media (prefers-reduced-motion: reduce) {
+  .sh-toast, .sh-toast.saliendo { animation: none; }
+}
+
+/* ============================================================
+   14 · Superficies flotantes · popover, menú, diálogo
+   ============================================================ */
+.menu, .buscador-caja, .sh-popover {
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--popover); color: var(--popover-foreground);
+  box-shadow: var(--shadow-lg);
+}
+.menu-item, .cmd-item {
+  display: flex; align-items: center; gap: var(--sp-3);
+  width: 100%; padding: var(--sp-2) var(--sp-3);
+  border: 0; border-radius: var(--r-md);
+  background: transparent; color: var(--foreground);
+  font-family: inherit; font-size: var(--fs-sm); text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .menu-item:hover, .cmd-item:hover { background: var(--accent); }
+}
+.menu-item[aria-selected="true"], .cmd-item[aria-selected="true"] { background: var(--accent); }
+.menu-item svg, .cmd-item svg { width: 15px; height: 15px; flex: none; color: var(--muted-foreground); }
+
+/* Etiqueta de grupo dentro de un menú o del command */
+.sh-group-label {
+  padding: var(--sp-2) var(--sp-3) var(--sp-1);
+  font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* ============================================================
+   15 · Table
+   ============================================================ */
+.tabla { border: 1px solid var(--border); border-radius: var(--r-xl); overflow: hidden; background: var(--card); }
+.tabla-head {
+  background: transparent; border-bottom: 1px solid var(--border);
+  font-size: var(--fs-xs); font-weight: 500; color: var(--muted-foreground);
+}
+.tabla-fila { border-bottom: 1px solid var(--border); transition: background-color var(--dur-fast) var(--ease); }
+.tabla-fila:last-child { border-bottom: 0; }
+@media (hover: hover) and (pointer: fine) { .tabla-fila:hover { background: var(--muted); } }
+
+/* ============================================================
+   16 · Progress
+   ============================================================ */
+.sh-progress { height: 6px; border-radius: var(--r-full); background: var(--muted); overflow: hidden; }
+.sh-progress > i {
+  display: block; height: 100%; border-radius: inherit; background: var(--primary);
+  transition: width var(--dur-panel) var(--ease);
+}
+
+/* ============================================================
+   17 · Texto
+   ------------------------------------------------------------
+   muted-foreground para todo lo secundario. Es lo que hace que la
+   jerarquía se lea sin necesidad de más tamaños de letra.
+   ============================================================ */
+.sh-muted { color: var(--muted-foreground); }
+.sh-mono  { font-family: var(--font-mono); font-size: var(--fs-xs); }
+.sh-lead  { font-size: var(--fs-md); color: var(--muted-foreground); line-height: 1.6; }
+
+/* ============================================================
+   18 · Disparador de búsqueda
+   ------------------------------------------------------------
+   El patrón de shadcn para el command: un control que parece un
+   campo pero es un botón. Enseña el atajo, que es cómo se
+   aprende que existe.
+   ============================================================ */
+.sh-search-trigger {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  width: min(320px, 34vw); height: 32px; padding: 0 var(--sp-2) 0 var(--sp-3);
+  border: 1px solid var(--input); border-radius: var(--r-md);
+  background: var(--background); color: var(--muted-foreground);
+  font-family: inherit; font-size: var(--fs-xs);
+  cursor: pointer; text-align: left;
+  box-shadow: var(--shadow-2xs);
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.sh-search-trigger .sh-search-txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-search-trigger svg { width: 15px; height: 15px; flex: none; }
+@media (hover: hover) and (pointer: fine) {
+  .sh-search-trigger:hover { background: var(--accent); border-color: var(--border); }
+}
+.sh-search-trigger:active { transform: scale(0.99); }
+
+/* ============================================================
+   19 · Paleta de comandos
+   ============================================================ */
+.buscador-caja { padding: 0; overflow: hidden; }
+.buscador-campo-wrap {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+.buscador-campo-wrap svg { color: var(--muted-foreground); flex: none; }
+.buscador-campo-wrap input {
+  flex: 1; min-width: 0;
+  border: 0; background: transparent; outline: none;
+  color: var(--foreground);
+  font-family: inherit; font-size: var(--fs-md);
+}
+.buscador-campo-wrap input::placeholder { color: var(--muted-foreground); }
+.buscador-campo-wrap input::-webkit-search-cancel-button { display: none; }
+
+.buscador-resultados { max-height: 46vh; overflow-y: auto; padding: var(--sp-2); scroll-padding: var(--sp-2); }
+.cmd-grupo + .cmd-grupo { margin-top: var(--sp-1); }
+.cmd-item { gap: var(--sp-3); }
+.cmd-hueco { width: 15px; flex: none; }
+.cmd-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cmd-titulo, .cmd-detalle { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmd-detalle { font-size: var(--fs-xs); color: var(--muted-foreground); }
+.cmd-pista {
+  flex: none; font-size: 11px; color: var(--muted-foreground);
+  text-transform: lowercase;
+}
+.cmd-item kbd { flex: none; }
+.cmd-item mark { background: color-mix(in srgb, var(--primary) 26%, transparent); color: inherit; border-radius: 2px; }
+.cmd-vacio { padding: var(--sp-6) var(--sp-4); text-align: center; font-size: var(--fs-sm); color: var(--muted-foreground); }
+
+.cmd-pie {
+  display: flex; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-4);
+  border-top: 1px solid var(--border);
+  background: var(--muted);
+  font-size: 11px; color: var(--muted-foreground);
+}
+.cmd-pie span { display: inline-flex; align-items: center; gap: 4px; }
+.cmd-pie-n { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* ============================================================
+   20 · Campo de filtro de la bandeja
+   ============================================================ */
+.crm-search {
+  /* flex: none — la regla previa la dimensionaba para la barra
+     superior, y en una columna flex eso la estiraba a lo alto. */
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin: var(--sp-3) var(--sp-3) 0;
+  padding: 0 var(--sp-3);
+  height: 34px;
+  border: 1px solid var(--input); border-radius: var(--r-md);
+  background: var(--background);
+  box-shadow: var(--shadow-2xs);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.crm-search:focus-within {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 24%, transparent);
+}
+.crm-search svg { color: var(--muted-foreground); flex: none; }
+.crm-search input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+  color: var(--foreground); font-family: inherit; font-size: var(--fs-sm);
+}
+.crm-search input::placeholder { color: var(--muted-foreground); }
+.crm-search input::-webkit-search-cancel-button { display: none; }
+
+/* ============================================================
+   21 · Esqueleto de la agenda
+   ============================================================ */
+.agenda-esqueleto { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-5); }
+.agenda-esqueleto .sh-skeleton { height: 42px; }
+.agenda-cargando {
+  margin: 0; padding: 0 var(--sp-5) var(--sp-5);
+  font-size: var(--fs-xs); color: var(--muted-foreground);
+}

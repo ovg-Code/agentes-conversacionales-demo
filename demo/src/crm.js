@@ -27,9 +27,12 @@ import { ejecutarMacro, ejecutarEnBloque, ejecutarAccion } from './crm-acciones.
 import {
   renderDia, renderSemana, renderLista, renderFicha,
   ocupacionDia, citasDelDia, citasDeSemana, inicioDeSemana,
-  diaLargo, diaCorto, esHoy, listarCitas, sincronizarAgenda, estadoAgendaRemota
+  diaLargo, diaCorto, esHoy, listarCitas, sincronizarAgenda, estadoAgendaRemota,
+  renderEsqueletoAgenda
 } from './crm-agenda.js';
-import { renderResultados } from './crm-buscador.js';
+import { renderResultados, buscar } from './crm-buscador.js';
+import { filtrarGrupos, renderPaleta } from './command.js';
+import { toast, toastOk, toastError } from './sonner.js';
 import {
   ATRIBUTOS, OPERADORES, atributoPorClave, cumple, describir,
   listarVistas, guardarVista, borrarVista, vistaPorId
@@ -220,7 +223,7 @@ function aplicarEnBloque(accion, descripcion) {
   const ids = [...seleccion];
   ejecutarEnBloque(ids, accion);
   limpiarSeleccion();
-  avisar(`${descripcion} · ${ids.length} ${ids.length === 1 ? 'conversación' : 'conversaciones'}`);
+  avisar(`${descripcion} · ${ids.length} ${ids.length === 1 ? 'conversación' : 'conversaciones'}`, 'ok');
   refrescar();
 }
 
@@ -258,15 +261,10 @@ function abrirMenuContextual(ev, c) {
   menuAbierto = m;
 }
 
-/* ---------- Aviso efímero ---------- */
-let temporizadorAviso = null;
-function avisar(texto) {
-  const el = $('#aviso');
-  el.textContent = texto;
-  el.hidden = false;
-  clearTimeout(temporizadorAviso);
-  temporizadorAviso = setTimeout(() => { el.hidden = true; }, 3200);
-}
+/* ---------- Aviso efímero ----------
+   Era una píldora centrada abajo, que tapaba el compositor justo
+   después de escribir. Ahora es un toast a la derecha, apilable. */
+function avisar(texto, tono = 'info') { toast(texto, { tono }); }
 
 function textoVacio() {
   return {
@@ -357,7 +355,7 @@ function renderAcciones(c, estado) {
     label: m.nombre, detalle: m.descripcion,
     fn: () => {
       const r = ejecutarMacro(c.id, m.id);
-      if (r) avisar(`Macro «${r.macro.nombre}»: ${r.hechos.join(' · ')}`);
+      if (r) toastOk(`Macro «${r.macro.nombre}»`, { detalle: r.hechos.join(' · ') });
       refrescar();
     }
   })), 'rayo'));
@@ -567,7 +565,7 @@ function exportar(c) {
   a.download = `conversacion-${(nombreDe(c) || 'paciente').replace(/\s+/g, '-').toLowerCase()}.txt`;
   a.click();
   URL.revokeObjectURL(url);
-  avisar('Transcripción descargada');
+  avisar('Transcripción descargada', 'ok');
 }
 
 /** Otras conversaciones del mismo paciente (por cédula o teléfono). */
@@ -645,7 +643,7 @@ async function elegirAdjunto(archivo) {
   if (!archivo) return;
   const maxKB = leerAjustes().adjuntoMaxKB;
   if (archivo.size > maxKB * 1024) {
-    avisar(`El archivo pesa ${tamano(archivo.size)}. En esta demo el límite es ${maxKB} KB porque todo se guarda en el navegador.`);
+    toastError('El adjunto es demasiado grande', { detalle: `Pesa ${tamano(archivo.size)} y el límite de la demo son ${maxKB} KB, porque todo se guarda en el navegador.` });
     return;
   }
   const datos = await new Promise((res, rej) => {
@@ -654,7 +652,7 @@ async function elegirAdjunto(archivo) {
     fr.onerror = () => rej(fr.error);
     fr.readAsDataURL(archivo);
   }).catch(() => null);
-  if (!datos) { avisar('No pude leer el archivo.'); return; }
+  if (!datos) { toastError('No pude leer el archivo.'); return; }
   adjuntoPendiente = { nombre: archivo.name, tipo: archivo.type, tamano: archivo.size, datos };
   renderAdjuntoPendiente();
 }
@@ -916,9 +914,9 @@ function manejarAtajo(ev) {
   // El buscador captura las flechas mientras está abierto.
   if (!$('#buscador').hidden) {
     const n = resultadosBusqueda.length;
-    if (ev.key === 'ArrowDown') { buscadorActivo = Math.min(buscadorActivo + 1, n - 1); actualizarBuscador(); ev.preventDefault(); return; }
-    if (ev.key === 'ArrowUp')   { buscadorActivo = Math.max(buscadorActivo - 1, 0); actualizarBuscador(); ev.preventDefault(); return; }
-    if (ev.key === 'Enter' && n) { irAResultado(resultadosBusqueda[buscadorActivo]); ev.preventDefault(); return; }
+    if (ev.key === 'ArrowDown') { buscadorActivo = (buscadorActivo + 1) % Math.max(1, n); actualizarBuscador(); desplazarAlActivo(); ev.preventDefault(); return; }
+    if (ev.key === 'ArrowUp')   { buscadorActivo = (buscadorActivo - 1 + n) % Math.max(1, n); actualizarBuscador(); desplazarAlActivo(); ev.preventDefault(); return; }
+    if (ev.key === 'Enter' && n) { ejecutarComando(resultadosBusqueda[buscadorActivo]); ev.preventDefault(); return; }
   }
   const enCampo = /input|textarea/i.test(ev.target.tagName);
   if ((ev.key === 'k' || ev.key === 'K') && (ev.metaKey || ev.ctrlKey)) {
@@ -1166,7 +1164,7 @@ function aplicarFiltros() {
   renderChipFiltro();
   refrescar();
   const n = conversacionesVisibles().length;
-  avisar(`Filtro aplicado · ${n} ${n === 1 ? 'conversación' : 'conversaciones'}`);
+  avisar(`Filtro aplicado · ${n} ${n === 1 ? 'conversación' : 'conversaciones'}`, 'ok');
 }
 
 function limpiarFiltros() {
@@ -1224,14 +1222,14 @@ function renderVistasGuardadas() {
 
 function guardarVistaActual() {
   const validas = condiciones.filter(c => c.atributo && c.operador);
-  if (!validas.length) { avisar('Añade al menos una condición antes de guardar.'); return; }
+  if (!validas.length) { avisar('Añade al menos una condición antes de guardar.', 'warn'); return; }
   const nombre = prompt('Nombre de la vista', describir(validas, union).slice(0, 40));
   if (!nombre) return;
   vistaActiva = guardarVista(nombre.trim(), validas, union);
   renderVistasGuardadas();
   renderChipFiltro();
   cerrarFiltros();
-  avisar(`Vista «${nombre.trim()}» guardada`);
+  avisar(`Vista «${nombre.trim()}» guardada`, 'ok');
 }
 
 /* ============================================================
@@ -1243,17 +1241,101 @@ function abrirBuscador() {
   const campo = $('#buscador-campo');
   campo.value = '';
   buscadorActivo = 0;
-  resultadosBusqueda = renderResultados($('#buscador-resultados'), '', 0);
+  actualizarBuscador();
   campo.focus();
 }
 
 function cerrarBuscador() { $('#buscador').hidden = true; }
 
+/* ------------------------------------------------------------
+   Los comandos disponibles
+   ------------------------------------------------------------
+   Las acciones se calculan en cada apertura porque dependen del
+   contexto: sin conversación abierta, las suyas no aparecen. Una
+   paleta que ofrece lo que no se puede hacer enseña a ignorarla.
+   ------------------------------------------------------------ */
+function comandosDisponibles() {
+  const acciones = [];
+  const c = seleccionada ? obtenerConversacion(seleccionada) : null;
+  if (c) {
+    /* Muchas conversaciones llegan sin nombre: el paciente aún no se
+       ha identificado. Decir "de la conversación" sería absurdo. */
+    const nombre = c.crm?.contacto?.paciente_nombre || c.contacto?.nombre || null;
+    const de = nombre ? ` de ${nombre}` : ' abierta';
+    const detalle = nombre || 'paciente sin identificar';
+    if (estadoEfectivo(c) !== 'resolved') {
+      acciones.push({ titulo: `Tomar la conversación${de}`, claves: 'asignar atender mia',
+                      icono: 'pacientes', atajo: 'A', hacer: () => { tomar(c.id); toastOk('Conversación tomada', { detalle }); } });
+      acciones.push({ titulo: `Resolver la conversación${de}`, claves: 'cerrar listo terminar',
+                      icono: 'check', atajo: 'R', hacer: () => { resolver(c.id); toastOk('Conversación resuelta', { detalle }); } });
+    }
+    acciones.push({ titulo: `Exportar la transcripción${de}`, claves: 'descargar txt copia',
+                    icono: 'informes', hacer: () => { exportar(c); toastOk('Transcripción descargada', { detalle }); } });
+  }
+  acciones.push({ titulo: 'Filtros avanzados', claves: 'buscar condiciones vista', icono: 'filtro', atajo: 'F',
+                  hacer: () => { if (seccion !== 'conversaciones') irA('conversaciones'); abrirFiltros(); } });
+  acciones.push({ titulo: 'Cambiar de tema', claves: 'oscuro claro dark light modo', icono: 'luna',
+                  hacer: () => $('#theme').click() });
+  acciones.push({ titulo: 'Abrir el simulador de chat', claves: 'whatsapp paciente agente', icono: 'mensajes',
+                  hacer: () => { location.href = $('#link-chat').getAttribute('href'); } });
+
+  const navegacion = [
+    ['conversaciones', 'Conversaciones', 'mensajes',   'bandeja inbox chats'],
+    ['agenda',         'Agenda',         'calendario', 'citas horarios calendario'],
+    ['pacientes',      'Pacientes',      'pacientes',  'contactos personas'],
+    ['informes',       'Informes',       'informes',   'metricas estadisticas datos'],
+    ['ajustes',        'Ajustes',        'ajustes',    'equipo macros sla configuracion']
+  ].map(([id, titulo, ico, claves]) => ({
+    titulo: `Ir a ${titulo}`, claves, icono: ico,
+    pista: seccion === id ? 'aquí' : null,
+    hacer: () => irA(id)
+  }));
+
+  return { acciones, navegacion };
+}
+
 function actualizarBuscador() {
   const q = $('#buscador-campo').value;
-  resultadosBusqueda = renderResultados($('#buscador-resultados'), q, buscadorActivo);
-  $$('#buscador-resultados .resultado').forEach(b =>
-    b.addEventListener('click', () => irAResultado(resultadosBusqueda[+b.dataset.i])));
+  const { acciones, navegacion } = comandosDisponibles();
+
+  /* La búsqueda de contenido necesita dos caracteres; los comandos
+     no, porque la lista ya está acotada y sirve de menú. */
+  const encontrados = q.trim().length >= 2 ? buscar(q) : [];
+  const resultados = encontrados.map(r => ({
+    titulo: r.titulo.replace(/<[^>]*>/g, ''),
+    html: `<span class="cmd-titulo">${r.titulo}</span><span class="cmd-detalle">${r.detalle}</span>`,
+    icono: r.icono, pista: r.tipo, _res: r,
+    hacer: () => irAResultado(r)
+  }));
+
+  const grupos = [
+    ...filtrarGrupos([{ titulo: 'Acciones', items: acciones },
+                      { titulo: 'Navegación', items: navegacion }], q),
+    { titulo: 'Resultados', items: resultados }
+  ];
+  const total = grupos.reduce((n, g) => n + g.items.length, 0);
+  buscadorActivo = Math.max(0, Math.min(buscadorActivo, total - 1));
+
+  resultadosBusqueda = renderPaleta($('#buscador-resultados'), grupos, buscadorActivo);
+  $$('#buscador-resultados .cmd-item').forEach(b =>
+    b.addEventListener('click', () => ejecutarComando(resultadosBusqueda[+b.dataset.i])));
+
+  const pie = $('#buscador-pie-n');
+  if (pie) pie.textContent = q.trim().length >= 2 && !encontrados.length
+    ? 'sin coincidencias en mensajes'
+    : `${total} ${total === 1 ? 'opción' : 'opciones'}`;
+}
+
+/* Mantener a la vista el elemento activo al navegar con flechas. */
+function desplazarAlActivo() {
+  const el = $('#buscador-resultados .cmd-item[aria-selected="true"]');
+  if (el) el.scrollIntoView({ block: 'nearest' });
+}
+
+function ejecutarComando(cmd) {
+  if (!cmd) return;
+  cerrarBuscador();
+  cmd.hacer();
 }
 
 function irAResultado(r) {
@@ -1296,10 +1378,17 @@ function irA(nueva) {
 function renderSeccion() {
   if (seccion === 'conversaciones') { refrescar(); return; }
   if (seccion === 'agenda') {
-    renderAgenda(); actualizarBadgeRail();
+    actualizarBadgeRail();
+    const ya = estadoAgendaRemota();
     /* Si el servidor tiene Google Calendar, la agenda de verdad está
-       allí: se pinta lo que se tiene y se repinta al llegar. */
-    sincronizarAgenda().then(e => { if (e.conectado || e.error) renderAgenda(); });
+       allí. La primera vez se enseña un esqueleto; a partir de ahí ya
+       hay datos y repintar de golpe no parpadea. */
+    if (ya.cargado) renderAgenda();
+    else renderEsqueletoAgenda($('#ag-vista'));
+    sincronizarAgenda().then(e => {
+      renderAgenda();
+      if (e.error && e.conectado) toastError('El calendario del centro no responde', { detalle: e.error });
+    });
     return;
   }
   if (seccion === 'pacientes') {
@@ -1307,7 +1396,7 @@ function renderSeccion() {
   } else if (seccion === 'informes') {
     renderInformes($('#informes'));
   } else if (seccion === 'ajustes') {
-    renderAjustes($('#ajustes'), () => { avisar('Ajustes guardados'); renderBandeja(); });
+    renderAjustes($('#ajustes'), () => { toastOk('Ajustes guardados', { detalle: 'Los umbrales de SLA se aplican ya a la bandeja.' }); renderBandeja(); });
   }
   actualizarBadgeRail();
 }

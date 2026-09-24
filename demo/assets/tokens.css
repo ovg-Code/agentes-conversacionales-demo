@@ -102,8 +102,47 @@
   --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
   --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px;
 
-  /* ---- Radios · Chatwoot usa curvas contenidas ---- */
-  --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px; --r-full: 999px;
+  /* ---- Radios ----
+     shadcn deriva toda la curvatura de una sola variable, y eso es
+     lo que hace que un botón, un input y una tarjeta parezcan de la
+     misma familia. --radius manda; el resto se calcula. */
+  --radius: 8px;
+  --r-sm: calc(var(--radius) - 4px);   /* 4px  · chips, marcas */
+  --r-md: calc(var(--radius) - 2px);   /* 6px  · botones, inputs */
+  --r-lg: var(--radius);               /* 8px  · popovers, menús */
+  --r-xl: calc(var(--radius) + 4px);   /* 12px · tarjetas, diálogos */
+  --r-full: 999px;
+
+  /* ---- Papeles de shadcn ----
+     Los mismos colores de arriba, nombrados como los nombra shadcn.
+     No es azúcar: es lo que permite escribir un componente mirando
+     su documentación y que aquí signifique lo mismo. */
+  --background:            rgb(var(--slate-1));
+  --foreground:            rgb(var(--slate-12));
+  --card:                  rgb(var(--slate-1));
+  --card-foreground:       rgb(var(--slate-12));
+  --popover:               rgb(var(--slate-1));
+  --popover-foreground:    rgb(var(--slate-12));
+  --primary:               rgb(var(--iris-9));
+  --primary-foreground:    rgb(var(--slate-1));
+  --secondary:             rgb(var(--slate-3));
+  --secondary-foreground:  rgb(var(--slate-12));
+  --muted:                 rgb(var(--slate-3));
+  --muted-foreground:      rgb(var(--slate-11));
+  --accent:                rgb(var(--slate-4));
+  --accent-foreground:     rgb(var(--slate-12));
+  --destructive:           rgb(var(--ruby-9));
+  --destructive-foreground: rgb(var(--slate-1));
+  --border:                rgb(var(--slate-6));
+  --input:                 rgb(var(--slate-7));
+  --ring:                  rgb(var(--iris-8));
+
+  /* Sombras de shadcn: casi invisibles, y ese es el punto. */
+  --shadow-2xs: 0 1px 2px 0 rgb(var(--slate-12) / .04);
+  --shadow-xs:  0 1px 2px 0 rgb(var(--slate-12) / .05);
+  --shadow-sm:  0 1px 2px 0 rgb(var(--slate-12) / .05), 0 1px 3px 0 rgb(var(--slate-12) / .07);
+  --shadow-md:  0 2px 4px -1px rgb(var(--slate-12) / .06), 0 4px 8px -2px rgb(var(--slate-12) / .08);
+  --shadow-lg:  0 4px 6px -2px rgb(var(--slate-12) / .05), 0 12px 24px -6px rgb(var(--slate-12) / .14);
 
   /* ---- Elevación ---- */
   --e-1: 0 1px 1px rgb(var(--slate-12) / .04), 0 1px 2px rgb(var(--slate-12) / .06);
@@ -164,6 +203,17 @@
     --ruby-3:  58  20  30;  --ruby-6: 111  37  57;  --ruby-8: 179  68  90;
     --ruby-9: 229  70 102;  --ruby-10:236  90 114;  --ruby-11:255 148 157;
 
+    /* En oscuro el borde tiene que subir un paso o desaparece, y
+       las sombras dejan de ser grises para ser negras de verdad. */
+    --border: rgb(var(--slate-6));
+    --input:  rgb(var(--slate-7));
+    --ring:   rgb(var(--iris-8));
+    --shadow-2xs: 0 1px 2px 0 rgb(0 0 0 / .30);
+    --shadow-xs:  0 1px 2px 0 rgb(0 0 0 / .34);
+    --shadow-sm:  0 1px 2px 0 rgb(0 0 0 / .34), 0 1px 3px 0 rgb(0 0 0 / .40);
+    --shadow-md:  0 2px 4px -1px rgb(0 0 0 / .38), 0 4px 10px -2px rgb(0 0 0 / .46);
+    --shadow-lg:  0 4px 8px -2px rgb(0 0 0 / .40), 0 16px 32px -8px rgb(0 0 0 / .60);
+
     --e-1: 0 1px 1px rgb(0 0 0 / .28), 0 1px 3px rgb(0 0 0 / .34);
     --e-2: 0 1px 2px rgb(0 0 0 / .30), 0 4px 14px -2px rgb(0 0 0 / .45);
     --e-3: 0 2px 6px rgb(0 0 0 / .32), 0 14px 36px -8px rgb(0 0 0 / .58);
@@ -197,6 +247,13 @@
 
   --ruby-3:  58  20  30;  --ruby-6: 111  37  57;  --ruby-8: 179  68  90;
   --ruby-9: 229  70 102;  --ruby-10:236  90 114;  --ruby-11:255 148 157;
+
+  /* Mismos ajustes que en el bloque por preferencia del sistema. */
+  --shadow-2xs: 0 1px 2px 0 rgb(0 0 0 / .30);
+  --shadow-xs:  0 1px 2px 0 rgb(0 0 0 / .34);
+  --shadow-sm:  0 1px 2px 0 rgb(0 0 0 / .34), 0 1px 3px 0 rgb(0 0 0 / .40);
+  --shadow-md:  0 2px 4px -1px rgb(0 0 0 / .38), 0 4px 10px -2px rgb(0 0 0 / .46);
+  --shadow-lg:  0 4px 8px -2px rgb(0 0 0 / .40), 0 16px 32px -8px rgb(0 0 0 / .60);
 
   --e-1: 0 1px 1px rgb(0 0 0 / .28), 0 1px 3px rgb(0 0 0 / .34);
   --e-2: 0 1px 2px rgb(0 0 0 / .30), 0 4px 14px -2px rgb(0 0 0 / .45);

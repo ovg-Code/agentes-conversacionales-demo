@@ -44,6 +44,18 @@ let _remoto = { conectado: false, citas: [], error: null, cargado: false };
 
 export function estadoAgendaRemota() { return { ..._remoto }; }
 
+/* Mientras Calendar contesta no se enseña una agenda vacía: una
+   agenda vacía es una afirmación —"no hay nada hoy"— y aquí sería
+   falsa. El esqueleto dice "todavía no lo sé", que es lo cierto. */
+export function renderEsqueletoAgenda(cont, filas = 7) {
+  cont.innerHTML = `<div class="agenda-esqueleto" aria-hidden="true">${
+    Array.from({ length: filas }, (_, i) => {
+      const ancho = [72, 54, 88, 44, 66, 80, 58][i % 7];
+      return `<div class="sh-skeleton" style="width:${ancho}%;animation-delay:${i * 70}ms"></div>`;
+    }).join('')}</div>
+  <p class="agenda-cargando">Consultando el calendario del centro…</p>`;
+}
+
 export async function sincronizarAgenda() {
   try {
     const r = await fetch('/api/agenda');
