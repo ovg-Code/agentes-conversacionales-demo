@@ -26,7 +26,7 @@ import { ejecutarMacro, ejecutarEnBloque, ejecutarAccion } from './crm-acciones.
 import {
   renderDia, renderSemana, renderLista, renderFicha,
   ocupacionDia, citasDelDia, citasDeSemana, inicioDeSemana,
-  diaLargo, diaCorto, esHoy, listarCitas
+  diaLargo, diaCorto, esHoy, listarCitas, sincronizarAgenda, estadoAgendaRemota
 } from './crm-agenda.js';
 import { renderResultados } from './crm-buscador.js';
 import {
@@ -983,6 +983,7 @@ function refrescar() {
 function renderAgenda() {
   $$('.agenda-vistas .inbox-filter').forEach(b => b.setAttribute('aria-selected', String(b.dataset.agvista === agVista)));
   $('#ag-titulo').textContent = tituloAgenda();
+  renderFuenteAgenda();
   renderMetricasAgenda();
 
   const cont = $('#ag-vista');
@@ -993,6 +994,20 @@ function renderAgenda() {
 
   renderFicha($('#ag-ficha'), agCita, abrirConversacionDesdeAgenda);
   marcarCitaActiva();
+}
+
+/* De dónde sale la agenda. Importa decirlo: una agenda que parece
+   la del centro y no lo es hace que alguien prometa una hora. */
+function renderFuenteAgenda() {
+  const el = $('#ag-fuente');
+  if (!el) return;
+  const e = estadoAgendaRemota();
+  /* El aviso de fallo solo tiene sentido si alguna vez estuvo
+     conectado. Sin servidor detrás —la demo publicada— no hay nada
+     que haya dejado de responder: simplemente es local. */
+  if (e.conectado && !e.error) { el.className = 'agenda-fuente ok'; el.textContent = 'Google Calendar'; }
+  else if (e.conectado)        { el.className = 'agenda-fuente warn'; el.textContent = 'Calendar sin responder'; }
+  else                         { el.className = 'agenda-fuente'; el.textContent = 'Datos locales · demo'; }
 }
 
 function marcarCitaActiva() {
@@ -1279,7 +1294,13 @@ function irA(nueva) {
 
 function renderSeccion() {
   if (seccion === 'conversaciones') { refrescar(); return; }
-  if (seccion === 'agenda') { renderAgenda(); actualizarBadgeRail(); return; }
+  if (seccion === 'agenda') {
+    renderAgenda(); actualizarBadgeRail();
+    /* Si el servidor tiene Google Calendar, la agenda de verdad está
+       allí: se pinta lo que se tiene y se repinta al llegar. */
+    sincronizarAgenda().then(e => { if (e.conectado || e.error) renderAgenda(); });
+    return;
+  }
   if (seccion === 'pacientes') {
     renderPacientes($('#lista-pacientes'), filtroPacientes, id => { irA('conversaciones'); seleccionar(id); });
   } else if (seccion === 'informes') {

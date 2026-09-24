@@ -13,7 +13,7 @@
 import { listarConversaciones } from './bus.js';
 import { SEDES, HORARIO, ESTUDIOS } from './kb.js';
 import { icono } from './iconos.js';
-import { idEventoDesdeCita, tituloEvento, ZONA } from './calendario-mapeo.js';
+import { idReservaDeFranja, tituloEvento, ZONA } from './calendario-mapeo.js';
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -23,8 +23,91 @@ export const ESTADOS_CITA = {
   sin_orden:    { nombre: 'Falta orden médica',   tono: 'warn' },
   bloqueada:    { nombre: 'Screening pendiente',  tono: 'danger' },
   completada:   { nombre: 'Realizada',            tono: 'muted' },
-  no_asistio:   { nombre: 'No asistió',           tono: 'danger' }
+  no_asistio:   { nombre: 'No asistió',           tono: 'danger' },
+  // Un evento del calendario que no corresponde a ninguna cita:
+  // mantenimiento del equipo, vacaciones, un bloqueo puesto a mano.
+  bloqueo:      { nombre: 'Bloqueo del centro',   tono: 'muted' },
+  reserva:      { nombre: 'Reserva en curso',     tono: 'warn' }
 };
+
+/* ============================================================
+   La agenda cuando vive en Google Calendar
+   ------------------------------------------------------------
+   Calendar manda el cuándo y el dónde. El quién no está ahí —no
+   puede estar, por la Ley 81— y se resuelve aquí, cruzando el
+   cita_id del evento con las conversaciones del CRM.
+
+   Si el servidor no tiene calendario configurado, nada de esto se
+   activa y la agenda sigue leyendo lo local, como hasta ahora.
+   ============================================================ */
+let _remoto = { conectado: false, citas: [], error: null, cargado: false };
+
+export function estadoAgendaRemota() { return { ..._remoto }; }
+
+export async function sincronizarAgenda() {
+  try {
+    const r = await fetch('/api/agenda');
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.mensaje || d.error || `HTTP ${r.status}`);
+    _remoto = { conectado: Boolean(d.conectado), citas: d.citas || [], error: null, cargado: true };
+  } catch (e) {
+    // Un fallo de red no borra la agenda que ya se está mostrando.
+    _remoto = { ..._remoto, error: e.message, cargado: true };
+  }
+  return estadoAgendaRemota();
+}
+
+/* Cruce entre lo que dice Calendar y lo que sabe el CRM. */
+function citasDeCalendar() {
+  const porCita = new Map();
+  for (const c of listarConversaciones()) {
+    const conv = c.crm?.conversacion;
+    if (!conv?.cita_id) continue;
+    porCita.set(conv.cita_id, { conv, c });
+  }
+
+  return _remoto.citas.filter(e => !e.error && e.inicio).map(e => {
+    const par = e.cita_id ? porCita.get(e.cita_id) : null;
+    const conv = par?.conv;
+    /* El calendario lleva el estudio en el título. Sirve para las
+       citas que existen en Calendar pero no en el CRM: las que se
+       crearon antes del sistema, o por teléfono. */
+    const delTitulo = String(e.titulo || '').split(' · ')[0].trim();
+    const estudio = ESTUDIOS.find(x => x.id === conv?.cita_estudio_id)
+                 || ESTUDIOS.find(x => x.nombre.toLowerCase() === delTitulo.toLowerCase());
+    const aseguradora = par?.c?.crm?.contacto?.aseguradora || 'Privado';
+
+    let estado = 'confirmada';
+    if (!e.cita_id) estado = 'bloqueo';
+    else if (e.tentativa) estado = 'reserva';
+    else if (conv?.autorizacion_seguro === 'pendiente' && aseguradora !== 'Privado') estado = 'sin_autorizar';
+    else if (conv?.screening_rm_estado && !['aprobado', 'pendiente'].includes(conv.screening_rm_estado)) estado = 'bloqueada';
+    if (estado === 'confirmada' && new Date(e.inicio) < Date.now()) estado = 'completada';
+
+    return {
+      id: e.cita_id || e.evento_id,
+      /* Sin ficha en el CRM no hay nombre que mostrar, y poner
+         "sin identificar" haría pensar en un fallo de datos: se
+         enseña el estudio, que es lo que el calendario sí sabe. */
+      paciente: !e.cita_id ? (e.titulo || 'Bloqueo del centro')
+              : (par?.c?.crm?.contacto?.paciente_nombre || par?.c?.contacto?.nombre
+                 || estudio?.nombre || delTitulo || 'Cita sin ficha'),
+      sinFicha: Boolean(e.cita_id) && !par,
+      telefono: par?.c?.contacto?.telefono || '',
+      estudioId: estudio?.id || conv?.cita_estudio_id || null,
+      estudio: conv?.estudio_solicitado || estudio?.nombre || delTitulo || 'Estudio',
+      modalidad: estudio?.modalidad || '—',
+      inicio: e.inicio,
+      duracion: e.duracion_min || estudio?.duracion || 30,
+      sede: e.sede,
+      aseguradora,
+      estado,
+      origen: !e.cita_id ? 'bloqueo' : (par ? 'agente' : 'calendar'),
+      googleEventoId: e.evento_id,
+      idConversacion: par?.c?.id || null
+    };
+  });
+}
 
 /* ============================================================
    Semilla de demostración
@@ -165,6 +248,9 @@ function citasDeConversaciones() {
 
 /** Todas las citas, las del agente primero por si repiten identificador. */
 export function listarCitas() {
+  /* Con Calendar conectado no hay semilla ni citas locales: lo que
+     hay en el calendario es la agenda, con bloqueos y todo. */
+  if (_remoto.conectado) return citasDeCalendar().sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
   const reales = citasDeConversaciones();
   const ids = new Set(reales.map(c => c.id));
   return [...reales, ...semilla().filter(c => !ids.has(c.id))]
@@ -432,9 +518,13 @@ function enlazar(contenedor, alClic) {
    Diseño completo: docs/11-google-calendar.md
    ------------------------------------------------------------ */
 export function bloqueSincronizacion(cita) {
-  const conectado = Boolean(cita.googleEventoId);
-  let idEvento = null;
-  try { idEvento = idEventoDesdeCita(cita.id); } catch { idEvento = null; }
+  const conectado = _remoto.conectado || Boolean(cita.googleEventoId);
+  /* Con Calendar como agenda, el id del evento es el de la FRANJA:
+     ahí está el candado. Sin conectar, se enseña el que tendría. */
+  let idEvento = cita.googleEventoId || null;
+  if (!idEvento) {
+    try { idEvento = idReservaDeFranja(cita.sede, cita.inicio); } catch { idEvento = null; }
+  }
 
   const fila = (k, v) => `<div class="attr"><span class="k">${k}</span><span class="v">${esc(v ?? '—')}</span></div>`;
 
@@ -452,7 +542,7 @@ export function bloqueSincronizacion(cita) {
         <code>${esc(tituloEvento({ estudio: cita.estudio, cita_id: cita.id }))}</code>
       </div>
       <p class="ficha-aviso neutro">${conectado
-        ? 'El evento refleja esta cita. La capacidad la manda el sistema, no el calendario.'
+        ? 'Esta cita vive en Google Calendar. El identificador del evento sale de la franja: es lo que impide que dos pacientes se queden con la misma hora.'
         : 'Esta demo no escribe en ningún calendario. Al conectarlo, el evento se crea con ese identificador y ese título: sin nombre, teléfono ni aseguradora del paciente.'}</p>
     </div>`;
 }
@@ -472,7 +562,9 @@ export function renderFicha(contenedor, cita, alAbrirConversacion) {
     <div class="ficha-cabecera">
       <div>
         <strong>${esc(cita.paciente)}</strong>
-        <span>${esc(cita.telefono || 'sin teléfono')}</span>
+        <span>${esc(cita.origen === 'bloqueo' ? 'bloqueo del calendario'
+                   : cita.sinFicha ? 'sin ficha en el CRM'
+                   : (cita.telefono || 'sin teléfono'))}</span>
       </div>
       <span class="pill ${est.tono}">${esc(est.nombre)}</span>
     </div>
@@ -511,9 +603,11 @@ export function renderFicha(contenedor, cita, alAbrirConversacion) {
 
     <div class="ctx-block">
       <h3>Origen</h3>
-      <p class="ficha-origen">${cita.origen === 'agente'
-        ? 'Agendada por el <strong>agente virtual</strong> en una conversación de WhatsApp.'
-        : 'Cita de demostración, no procede de una conversación.'}</p>
+      <p class="ficha-origen">${
+        cita.origen === 'agente'  ? 'Agendada por el <strong>agente virtual</strong> en una conversación de WhatsApp.'
+      : cita.origen === 'bloqueo' ? 'No es una cita: es un <strong>bloqueo del calendario</strong> del centro. Ocupa el equipo, pero no hay paciente detrás.'
+      : cita.origen === 'calendar'? 'Está en el calendario del centro pero <strong>no tiene ficha en el CRM</strong>. Suele ser una cita tomada por teléfono o anterior al sistema.'
+      : 'Cita de demostración, no procede de una conversación.'}</p>
       ${cita.idConversacion ? '<button class="btn block" id="ficha-ir">Abrir la conversación</button>' : ''}
     </div>`;
 

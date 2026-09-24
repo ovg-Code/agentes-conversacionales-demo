@@ -12,6 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { manejarTurno, reiniciarSesion, MODELO, EFFORT } from './agent-ai.js';
+import { crearCalendario } from './calendario.js';
 import { resetEstadoHerramientas } from '../demo/src/tools.js';
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
@@ -22,6 +23,10 @@ const PUERTO = Number(process.env.PORT) || 3000;
 // ANTHROPIC_AUTH_TOKEN o un perfil de `ant auth login`).
 const hayCredencial = Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 const client = hayCredencial ? new Anthropic() : null;
+
+/* Con Google Calendar configurado, la agenda del CRM no sale de
+   localStorage: sale del calendario, que es el sistema real. */
+const CALENDARIO = crearCalendario();
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -34,8 +39,25 @@ const servidor = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   if (url.pathname === '/api/health') return json(res, 200, {
-    ia: hayCredencial, modelo: hayCredencial ? MODELO : null, effort: hayCredencial ? EFFORT : null
+    ia: hayCredencial, modelo: hayCredencial ? MODELO : null, effort: hayCredencial ? EFFORT : null,
+    agenda: CALENDARIO.conectado ? 'google-calendar' : 'local'
   });
+
+  /* La agenda del CRM. Devuelve el "cuándo y dónde" tal como está en
+     Calendar; el "quién" lo resuelve el navegador con sus propios
+     datos, porque el nombre del paciente no viaja al calendario. */
+  if (url.pathname === '/api/agenda') {
+    if (!CALENDARIO.conectado) return json(res, 200, { conectado: false, citas: [] });
+    const desde = url.searchParams.get('desde') || new Date(Date.now() - 7 * 864e5).toISOString();
+    const hasta = url.searchParams.get('hasta') || new Date(Date.now() + 21 * 864e5).toISOString();
+    try {
+      const citas = await CALENDARIO.citasEntre({ desde, hasta });
+      return json(res, 200, { conectado: true, desde, hasta, citas });
+    } catch (err) {
+      console.error('[api/agenda]', err);
+      return json(res, 502, { conectado: true, error: 'AGENDA_NO_DISPONIBLE', mensaje: err.message });
+    }
+  }
 
   if (url.pathname === '/api/chat' && req.method === 'POST') {
     if (!client) return json(res, 503, { error: 'SIN_CREDENCIAL', mensaje: 'Define ANTHROPIC_API_KEY para usar el modo IA.' });

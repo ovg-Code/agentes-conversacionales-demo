@@ -355,6 +355,15 @@ function hashSimple(s) {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
+/* Con Google Calendar como agenda, los cupos no los inventa
+   buscar_cupos: los trae el calendario. Pero agendar_cita sigue
+   validando contra este registro, que es lo que impide que el
+   modelo agende una hora que nunca se ofreció. */
+export function registrarCupos(cupos = []) {
+  for (const c of cupos) _cupos.set(c.cupo_id, { ...c, creado: Date.now() });
+  return cupos.length;
+}
+
 export function resetEstadoHerramientas() {
   _cupos.clear(); _citas.clear(); _idempotencia.clear(); _seqCita = 4870;
 }

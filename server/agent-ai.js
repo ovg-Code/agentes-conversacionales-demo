@@ -28,7 +28,7 @@ import {
   TERMINOS_EMERGENCIA, TERMINOS_HUMANO, TERMINOS_INTERPRETACION, TERMINOS_RECLAMO,
   buscarEstudio, normalizar, estudioPorId, dentroDeHorario
 } from '../demo/src/kb.js';
-import { crearCalendario, espejarEnCalendario } from './calendario.js';
+import { crearCalendario, antesDeCalendario, despuesDeCalendario } from './calendario.js';
 
 export const MODELO = process.env.OPENSIDE_MODEL || 'claude-opus-5';
 export const EFFORT = process.env.OPENSIDE_EFFORT || 'medium';
@@ -271,10 +271,11 @@ async function loopAgentico(client, st, trace) {
     const resultados = [];
 
     for (const tu of bloques) {
-      let res = ejecutar(tu.name, tu.input, st, trace);
-      // El calendario externo se consulta y se escribe aquí, donde el
-      // loop ya es asíncrono. Ver server/calendario.js.
-      res = await espejarEnCalendario(tu.name, res, st, CALENDARIO, trace);
+      // Con Google Calendar conectado, la franja se toma ANTES de
+      // ejecutar y se confirma después. Ver server/calendario.js.
+      const previo = await antesDeCalendario(tu.name, tu.input, st, CALENDARIO, trace);
+      let res = previo || ejecutar(tu.name, tu.input, st, trace);
+      res = await despuesDeCalendario(tu.name, tu.input, res, st, CALENDARIO, trace);
       resultados.push({
         type: 'tool_result',
         tool_use_id: tu.id,

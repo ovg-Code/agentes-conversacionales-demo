@@ -14,8 +14,10 @@ import crypto from 'node:crypto';
 import {
   ZONA, SCOPES, calendariosDeEntorno, idEventoDesdeCita, eventoDesdeCita, citaDesdeEvento,
   filtrarCuposOcupados, CalendarioMemoria, CalendarioGoogle, crearCalendario,
-  crearTokenServiceAccount, espejarEnCalendario
+  crearTokenServiceAccount, antesDeCalendario, despuesDeCalendario,
+  idReservaDeFranja, generarFranjas, horaPanama, etiquetaPanama, esNuestro
 } from './calendario.js';
+import { resetEstadoHerramientas, agendar_cita } from '../demo/src/tools.js';
 
 let fallos = 0, n = 0;
 function ok(cond, nombre, detalle) {
@@ -282,92 +284,263 @@ ok(crearCalendario(ENTORNO_SA) instanceof CalendarioMemoria,
    'con credenciales pero sin calendarios no se conecta a medias');
 
 /* ============================================================ */
-console.log('\n— Espejo dentro del turno del agente —');
+console.log('\n— Rejilla de franjas en hora de Panamá —');
 
-const CUPOS = [
-  { cupo_id: 'c1', inicio: '2026-10-05T12:00:00.000Z', duracion_min: 45, sede: '75E' },
-  { cupo_id: 'c2', inicio: '2026-10-05T14:00:00.000Z', duracion_min: 45, sede: '75E' },
-  { cupo_id: 'c3', inicio: '2026-10-06T13:00:00.000Z', duracion_min: 45, sede: '76E' }
-];
-const resBusqueda = () => ({ ok: true, cupos: CUPOS.map(c => ({ cupo_id: c.cupo_id, cuando: 'x' })) });
-const estado = () => ({ cupos: CUPOS.map(c => ({ ...c })), cita: {} });
+const AHORA = new Date('2026-10-01T15:00:00.000Z').getTime();
+const rejilla = generarFranjas({ desde: '2026-10-05', dias: 7, duracionMin: 45, ahora: AHORA });
+
+ok(rejilla.length > 0, 'genera franjas');
+ok(horaPanama(rejilla[0].inicio).hora === 7 && rejilla[0].inicio.endsWith('T12:00:00.000Z'),
+   'las 7:00 del centro son las 12:00 UTC, no las 7:00 UTC', rejilla[0].inicio);
+ok(!rejilla.some(f => horaPanama(f.inicio).dia === 0), 'no ofrece domingos: el centro cierra');
+const sabados = rejilla.filter(f => horaPanama(f.inicio).dia === 6);
+ok(sabados.length > 0 && sabados.every(f => horaPanama(f.inicio).hora < 14),
+   'el sábado no ofrece nada después de las 2:00 p.m.');
+ok(rejilla.every(f => {
+  const h = horaPanama(f.inicio);
+  const cierre = h.dia === 6 ? 14 : 20;
+  return h.hora * 60 + h.minuto + 45 <= cierre * 60;
+}), 'ninguna franja termina después del cierre: cabe el estudio entero');
+ok(rejilla.every(f => new Date(f.inicio).getTime() >= AHORA + 120 * 60000),
+   'respeta el margen mínimo: nadie agenda una resonancia para dentro de veinte minutos');
+
+const conMargen = generarFranjas({ dias: 2, duracionMin: 30, ahora: AHORA });
+ok(conMargen.every(f => new Date(f.inicio).getTime() >= AHORA + 120 * 60000),
+   'sin fecha de inicio arranca desde ahora, con el mismo margen');
+ok(generarFranjas({ desde: '2026-10-05', dias: 7, duracionMin: 45, preferencia: 'manana', ahora: AHORA })
+     .every(f => horaPanama(f.inicio).hora < 12), 'la preferencia de mañana se respeta');
+ok(generarFranjas({ desde: '2026-10-05', dias: 7, duracionMin: 45, preferencia: 'tarde', ahora: AHORA })
+     .every(f => horaPanama(f.inicio).hora >= 12), 'y la de tarde también');
+ok(etiquetaPanama('2026-10-05T12:00:00Z') === 'lunes 5 de octubre, 7:00 a.m.',
+   'la etiqueta que lee el paciente está en hora del centro', etiquetaPanama('2026-10-05T12:00:00Z'));
+
+/* ============================================================ */
+console.log('\n— Candado de franja —');
+
+ok(/^[a-v0-9]{5,}$/.test(idReservaDeFranja('75E', '2026-10-05T12:00:00Z')), 'el id de reserva es válido para Google');
+ok(idReservaDeFranja('75E', '2026-10-05T12:00:00Z') === idReservaDeFranja('75E', '2026-10-05T12:00:00.000Z'),
+   'la misma franja da el mismo id: ahí está el candado');
+ok(idReservaDeFranja('75E', '2026-10-05T12:00:00Z') !== idReservaDeFranja('76E', '2026-10-05T12:00:00Z'),
+   'cada sede tiene su propio candado');
+ok(idReservaDeFranja('75E', '2026-10-05T12:00:00Z') !== idReservaDeFranja('75E', '2026-10-05T12:15:00Z'),
+   'y cada hora el suyo');
+
+const evNuestro = (id, ini, dur) => ({
+  id, status: 'confirmed',
+  start: { dateTime: ini }, end: { dateTime: new Date(new Date(ini).getTime() + dur * 60000).toISOString() },
+  extendedProperties: { private: { origen: 'agente-openside' } }
+});
+const evAjeno = (id, ini, dur) => ({
+  id, summary: 'Mantenimiento', status: 'confirmed',
+  start: { dateTime: ini }, end: { dateTime: new Date(new Date(ini).getTime() + dur * 60000).toISOString() }
+});
+ok(esNuestro(evNuestro('x', '2026-10-05T12:00:00Z', 30)) === true, 'reconoce un evento propio');
+ok(esNuestro(evAjeno('x', '2026-10-05T12:00:00Z', 30)) === false, 'y uno puesto a mano');
+
+const FRANJA = { sede: '75E', inicio: '2026-10-05T12:00:00.000Z', duracionMin: 45 };
+const MIO = idReservaDeFranja('75E', FRANJA.inicio);
+
+/* Guion por método HTTP, que es como se lee el protocolo */
+function calendarioGuion(pasos) {
+  let i = 0;
+  const f = fetchFalso(pasos);
+  return google(f);
+}
+const lista = (items) => ({ status: 200, datos: { items } });
+const insertOK = { status: 200, datos: { id: MIO, etag: '"r1"' } };
+
+/* 1 · camino feliz */
+let gc = calendarioGuion([insertOK, lista([evNuestro(MIO, FRANJA.inicio, 45)])]);
+let r = await gc.reservar(FRANJA);
+ok(r.ok && r.reserva_id === MIO, 'retiene la franja', r);
+ok(gc.fetch.llamadas[0].method === 'POST' && gc.fetch.llamadas[0].cuerpo.status === 'tentative',
+   'el evento entra como tentativo: es una retención, no una cita');
+ok(!JSON.stringify(gc.fetch.llamadas[0].cuerpo).includes('María'),
+   'la retención tampoco lleva datos del paciente');
+
+/* 2 · el id ya existe y está vivo */
+gc = calendarioGuion([{ status: 409, datos: {} }, { status: 200, datos: { id: MIO, status: 'confirmed' } }]);
+r = await gc.reservar(FRANJA);
+ok(r.ok === false && r.error === 'FRANJA_TOMADA' && r.motivo === 'id_ocupado',
+   'dos reservas del mismo inicio chocan y la segunda pierde', r);
+
+/* 3 · el id existe pero cancelado: se revive */
+gc = calendarioGuion([
+  { status: 409, datos: {} },
+  { status: 200, datos: { id: MIO, status: 'cancelled' } },
+  { status: 200, datos: { id: MIO, etag: '"r2"' } },
+  lista([evNuestro(MIO, FRANJA.inicio, 45)])
+]);
+r = await gc.reservar(FRANJA);
+ok(r.ok === true, 'una franja liberada antes se puede volver a tomar', r);
+ok(gc.fetch.llamadas[2].method === 'PATCH', 'reviviendo el evento cancelado, no creando otro id');
+
+/* 4 · un bloqueo del centro gana siempre */
+gc = calendarioGuion([insertOK, lista([
+  evNuestro(MIO, FRANJA.inicio, 45),
+  evAjeno('manual1', '2026-10-05T12:30:00.000Z', 60)
+]), { status: 204, datos: {} }]);
+r = await gc.reservar(FRANJA);
+ok(r.ok === false && r.motivo === 'bloqueo_del_centro',
+   'un evento puesto a mano que solapa gana: quien está delante del paciente manda', r);
+ok(gc.fetch.llamadas.at(-1).method === 'DELETE', 'y la retención se suelta, no se queda colgada');
+
+/* 5 · carrera contra otra reserva nuestra: gana el id menor */
+const OTRO_MENOR = 'a' + MIO;     // ordena antes
+const OTRO_MAYOR = 'z'.replace('z', 'v') + MIO;
+gc = calendarioGuion([insertOK, lista([
+  evNuestro(MIO, FRANJA.inicio, 45),
+  evNuestro(OTRO_MENOR, '2026-10-05T12:30:00.000Z', 45)
+]), { status: 204, datos: {} }]);
+r = await gc.reservar(FRANJA);
+ok(r.ok === false && r.motivo === 'carrera_perdida', 'ante un id menor nos retiramos', r);
+
+gc = calendarioGuion([insertOK, lista([
+  evNuestro(MIO, FRANJA.inicio, 45),
+  evNuestro(OTRO_MAYOR, '2026-10-05T12:30:00.000Z', 45)
+])]);
+r = await gc.reservar(FRANJA);
+ok(r.ok === true, 'ante un id mayor nos quedamos: el criterio es determinista y no hay bloqueo mutuo');
+ok(OTRO_MENOR < MIO && MIO < OTRO_MAYOR, 'los dos lados leen el mismo orden, así que solo uno se queda');
+
+/* 6 · un evento pegado no es un solape */
+gc = calendarioGuion([insertOK, lista([
+  evNuestro(MIO, FRANJA.inicio, 45),
+  evAjeno('pegado', '2026-10-05T12:45:00.000Z', 30)
+])]);
+r = await gc.reservar(FRANJA);
+ok(r.ok === true, 'un evento que empieza justo al terminar el nuestro no estorba');
+
+/* 7 · no se puede verificar */
+gc = calendarioGuion([insertOK, { status: 500, datos: {} }, { status: 204, datos: {} }]);
+r = await gc.reservar(FRANJA);
+ok(r.ok === false && r.error === 'RESERVA_NO_VERIFICABLE',
+   'si no se puede releer la ventana, no se afirma que la franja es nuestra', r);
+ok(gc.fetch.llamadas.at(-1).method === 'DELETE', 'y se suelta lo que se había tomado');
+
+/* ============================================================ */
+console.log('\n— Disponibilidad calculada contra Calendar —');
+
+const gcDisp = (busy75, busy76) => google(fetchFalso([{ status: 200, datos: { calendars: {
+  'cal75@group.calendar.google.com': busy75,
+  'cal76@group.calendar.google.com': busy76
+} } }]));
+
+let disp = await gcDisp({ busy: [] }, { busy: [] })
+  .disponibilidad({ duracionMin: 45, desde: '2026-10-05', limite: 3, ahora: AHORA });
+ok(disp.ok && disp.cupos.length === 3, 'ofrece tres cupos', disp.cupos && disp.cupos.length);
+ok(new Set(disp.cupos.map(c => c.inicio.slice(0, 10))).size === 3,
+   'repartidos en días distintos, como haría una recepcionista', disp.cupos.map(c => c.inicio));
+ok(disp.cupos.every(c => c.cupo_id === idReservaDeFranja(c.sede, c.inicio)),
+   'el cupo_id ES la llave del candado: lo que se ofrece es lo que se reserva');
+
+disp = await gcDisp({ busy: [{ start: '2026-10-05T00:00:00Z', end: '2026-10-09T00:00:00Z' }] }, { busy: [] })
+  .disponibilidad({ duracionMin: 45, desde: '2026-10-05', limite: 3, ahora: AHORA });
+ok(disp.cupos.every(c => c.sede === '76E'), 'una sede bloqueada desaparece de la oferta', disp.cupos.map(c => c.sede));
+
+disp = await gcDisp({ errors: [{ reason: 'notFound' }] }, { busy: [] })
+  .disponibilidad({ duracionMin: 45, desde: '2026-10-05', limite: 3, ahora: AHORA });
+ok(disp.cupos.every(c => c.sede === '76E'),
+   'si Calendar ES la agenda, un calendario ilegible no se ofrece: no leerlo es no saber nada');
+
+disp = await gcDisp({ busy: [{ start: '2026-10-05T00:00:00Z', end: '2026-10-30T00:00:00Z' }] },
+                     { busy: [{ start: '2026-10-05T00:00:00Z', end: '2026-10-30T00:00:00Z' }] })
+  .disponibilidad({ duracionMin: 45, desde: '2026-10-05', limite: 3, ahora: AHORA });
+ok(disp.ok && disp.cupos.length === 0, 'con todo ocupado devuelve cero, no un cupo inventado');
+
+/* ============================================================ */
+console.log('\n— Enganches del turno del agente —');
+
+resetEstadoHerramientas();
 const traza = () => ({ tools: [], guardrails: [] });
-
 const falsoCal = (impl) => ({ conectado: true, ...impl });
 
-/* 1 · resta la ocupación real */
-let st = estado(), tr = traza();
-let r = await espejarEnCalendario('buscar_cupos', resBusqueda(), st, falsoCal({
-  libreOcupado: async ({ desde, hasta, sedes }) => {
-    ok(sedes.length === 2, 'consulta solo las sedes de los cupos ofrecidos', sedes);
-    ok(new Date(desde) <= new Date('2026-10-05T12:00:00.000Z'), 'la ventana cubre el primer cupo');
-    ok(new Date(hasta) >= new Date('2026-10-06T13:45:00.000Z'), 'y el final del último');
-    return { '75E': { busy: [{ start: '2026-10-05T12:30:00Z', end: '2026-10-05T13:00:00Z' }] }, '76E': { busy: [] } };
-  }
-}), tr);
-ok(r.cupos.map(c => c.cupo_id).join(',') === 'c2,c3', 'el cupo ocupado en Google no llega al paciente',
-   r.cupos.map(c => c.cupo_id));
-ok(st.cupos.length === 2, 'y también sale del estado: agendar_cita no lo aceptaría después');
-ok(tr.tools.some(t => t.nombre === 'calendario.freeBusy'), 'la resta queda en la traza del inspector');
-ok(r.verificacion_externa === 'ok', 'la respuesta declara que se verificó');
+/* buscar_cupos: la oferta viene de Calendar */
+let st = { cupos: [{ duracion_min: 45 }], labels: new Set() };
+let tr = traza();
+let res = await despuesDeCalendario('buscar_cupos', { estudio_id: 'rm-rodilla', sede: 'cualquiera' },
+  { ok: true, estudio: 'RM de rodilla', cupos: [{ cupo_id: 'inventado' }] }, st, falsoCal({
+    disponibilidad: async (a) => {
+      ok(a.duracionMin === 45, 'pide la duración real del estudio', a.duracionMin);
+      return { ok: true, cupos: [{ cupo_id: idReservaDeFranja('75E', '2026-10-05T12:00:00.000Z'),
+                                   inicio: '2026-10-05T12:00:00.000Z', sede: '75E', duracion_min: 45 }] };
+    }
+  }), tr);
+ok(res.cupos.length === 1 && res.cupos[0].cupo_id !== 'inventado',
+   'el cupo generado localmente no llega al paciente: manda Calendar');
+ok(res.cupos[0].cuando === 'lunes 5 de octubre, 7:00 a.m.', 'con la etiqueta en hora del centro', res.cupos[0].cuando);
+ok(res.cupos[0].sede === 'Sede Calle 75E', 'y el nombre de la sede resuelto', res.cupos[0].sede);
+ok(agendar_cita({ cupo_id: res.cupos[0].cupo_id, estudio_id: 'rm-rodilla', _contexto: { consentimiento: true, screening_estado: 'aprobado' } }).ok === true,
+   'el cupo de Calendar queda registrado: agendar_cita lo acepta');
+ok(agendar_cita({ cupo_id: 'inventado-por-el-modelo', estudio_id: 'rm-rodilla', _contexto: { consentimiento: true, screening_estado: 'aprobado' } }).error === 'CUPO_NO_VIGENTE',
+   'y uno inventado sigue rechazándose');
 
-/* 2 · una sede sin dato no se descarta a ciegas */
-st = estado();
-r = await espejarEnCalendario('buscar_cupos', resBusqueda(), st, falsoCal({
-  libreOcupado: async () => ({ '75E': { busy: null, error: 'notFound' } })
-}), traza());
-ok(r.cupos.length === 3, 'un calendario ilegible no borra los cupos de esa sede', r.cupos.length);
+/* buscar_cupos: la agenda no responde */
+st = { cupos: [{ duracion_min: 30 }] }; tr = traza();
+res = await despuesDeCalendario('buscar_cupos', {}, { ok: true, cupos: [{ cupo_id: 'x' }] }, st,
+  falsoCal({ disponibilidad: async () => { throw new Error('FREEBUSY_503'); } }), tr);
+ok(res.ok === false && res.error === 'AGENDA_NO_DISPONIBLE' && st.cupos.length === 0,
+   'sin agenda no se ofrece nada: con Calendar como sistema real, inventar una hora es peor que escalar', res);
+ok(tr.guardrails.some(g => g.nombre === 'agenda_calendar'), 'y queda registrado');
 
-/* 3 · freeBusy caído: se ofrece, pero sujeto a confirmación */
-st = estado(); tr = traza();
-r = await espejarEnCalendario('buscar_cupos', resBusqueda(), st, falsoCal({
-  libreOcupado: async () => { throw new Error('FREEBUSY_503'); }
-}), tr);
-ok(r.verificacion_externa === 'no_disponible' && r.cupos.length === 3,
-   'si el calendario no responde no se deja al paciente sin opciones…');
-ok(/sujeto a confirmación/i.test(r.nota), '…pero el modelo recibe la instrucción de no prometer la hora', r.nota);
-ok(tr.guardrails.some(g => g.nombre === 'freebusy'), 'el fallo queda registrado');
+/* agendar_cita: la franja se toma antes de ejecutar */
+st = { cupos: [{ cupo_id: MIO, inicio: FRANJA.inicio, sede: '75E', duracion_min: 45 }] }; tr = traza();
+let reservado = null;
+let previo = await antesDeCalendario('agendar_cita', { cupo_id: MIO, estudio_id: 'rm-rodilla' }, st,
+  falsoCal({ reservar: async (a) => { reservado = a; return { ok: true, reserva_id: MIO }; } }), tr);
+ok(previo === null, 'con la franja libre el ejecutor sigue su curso');
+ok(reservado.inicio === FRANJA.inicio && reservado.duracionMin === 45, 'se reservó la franja del cupo elegido');
+ok(st.reserva && st.reserva.reserva_id === MIO, 'la retención queda en el estado del turno');
 
-/* 4 · nada libre */
-st = estado();
-r = await espejarEnCalendario('buscar_cupos', resBusqueda(), st, falsoCal({
-  libreOcupado: async () => ({
-    '75E': { busy: [{ start: '2026-10-05T00:00:00Z', end: '2026-10-07T00:00:00Z' }] },
-    '76E': { busy: [{ start: '2026-10-05T00:00:00Z', end: '2026-10-07T00:00:00Z' }] }
-  })
-}), traza());
-ok(r.ok === true && r.cupos.length === 0 && r.verificacion_externa === 'sin_disponibilidad',
-   'con el día bloqueado devuelve cero cupos, no un cupo inventado', r);
+/* agendar_cita: la franja ya no está */
+st = { cupos: [{ cupo_id: MIO, inicio: FRANJA.inicio, sede: '75E', duracion_min: 45 }] }; tr = traza();
+previo = await antesDeCalendario('agendar_cita', { cupo_id: MIO }, st,
+  falsoCal({ reservar: async () => ({ ok: false, error: 'FRANJA_TOMADA', motivo: 'id_ocupado' }) }), tr);
+ok(previo && previo.error === 'CUPO_NO_VIGENTE', 'el ejecutor ni siquiera corre: no se crea una cita imposible', previo);
+ok(/vuelve a consultar disponibilidad/i.test(previo.mensaje), 'y el modelo recibe qué hacer a continuación');
+ok(st.cupos.length === 0, 'el cupo caducado sale del estado para que no se reintente');
 
-/* 5 · la cita se espeja después de existir */
-st = { cupos: [], cita: {} }; tr = traza();
-let orden = [];
-r = await espejarEnCalendario('agendar_cita', { ok: true, ...CITA }, st, falsoCal({
-  crearEvento: async (cita) => { orden.push('google'); return { ok: true, evento_id: idEventoDesdeCita(cita.cita_id), duplicado: false }; }
-}), tr);
-ok(r.google_evento_id === 'os202604871', 'la cita creada arrastra el id del evento', r.google_evento_id);
-ok(st.cita.googleEventoId === 'os202604871', 'y queda en el estado para publicarlo al CRM');
-ok(tr.tools.some(t => t.nombre === 'calendario.events.insert'), 'el inspector muestra la escritura');
+/* agendar_cita: un cupo que nunca se ofreció no se reserva */
+st = { cupos: [] };
+ok(await antesDeCalendario('agendar_cita', { cupo_id: 'alucinado' }, st,
+     falsoCal({ reservar: async () => { throw new Error('no debería llamarse'); } }), traza()) === null,
+   'un cupo_id alucinado no escribe en Calendar: de eso ya se encarga la precondición');
 
-/* 6 · el espejo falla: la cita sigue siendo válida */
-st = { cupos: [], cita: {} }; tr = traza();
-r = await espejarEnCalendario('agendar_cita', { ok: true, ...CITA }, st, falsoCal({
-  crearEvento: async () => { throw new Error('INSERT_500'); }
-}), tr);
-ok(r.ok === true && r.cita_id === CITA.cita_id, 'un fallo de Google NO cancela la cita del paciente');
-ok(r.espejo_pendiente === true && st.cita.espejoPendiente === true, 'queda marcada para reintento');
-ok(tr.guardrails.some(g => g.nombre === 'espejo_calendario'), 'y el fallo es visible, no silencioso');
+/* después: la reserva se vuelve cita */
+st = { reserva: { sede: '75E', inicio: FRANJA.inicio, reserva_id: MIO }, cita: {} }; tr = traza();
+res = await despuesDeCalendario('agendar_cita', {}, { ok: true, ...CITA }, st,
+  falsoCal({ confirmarReserva: async () => ({ ok: true, evento_id: MIO }) }), tr);
+ok(res.google_evento_id === MIO && st.cita.googleEventoId === MIO, 'la retención se convierte en la cita');
+ok(st.reserva === null, 'y deja de estar pendiente');
 
-/* 7 · sin conectar, el espejo no toca nada */
-const original = { ok: true, cupos: [{ cupo_id: 'c1' }] };
-ok(await espejarEnCalendario('buscar_cupos', original, estado(), new CalendarioMemoria(), traza()) === original,
-   'con el calendario en memoria la respuesta pasa intacta');
-ok(await espejarEnCalendario('buscar_cupos', original, estado(), null, traza()) === original,
-   'sin calendario tampoco falla');
-const fallida = { ok: false, error: 'CUPO_NO_VIGENTE' };
-ok(await espejarEnCalendario('agendar_cita', fallida, estado(), falsoCal({
-  crearEvento: async () => { throw new Error('no debería llamarse'); }
-}), traza()) === fallida, 'una herramienta que falló no escribe en el calendario');
+/* después: una precondición rechazó — hay que soltar la franja */
+st = { reserva: { sede: '75E', inicio: FRANJA.inicio, reserva_id: MIO }, cita: {} }; tr = traza();
+let liberada = null;
+res = await despuesDeCalendario('agendar_cita', {}, { ok: false, error: 'SIN_CONSENTIMIENTO' }, st,
+  falsoCal({ liberar: async (a) => { liberada = a; return { ok: true }; } }), tr);
+ok(liberada && liberada.inicio === FRANJA.inicio,
+   'si el guardrail bloquea, la franja se devuelve: no se retiene una hora por una cita que no existió');
+ok(res.error === 'SIN_CONSENTIMIENTO', 'y el rechazo llega al modelo intacto');
+
+/* después: no se pudo completar el evento */
+st = { reserva: { sede: '75E', inicio: FRANJA.inicio, reserva_id: MIO }, cita: {} }; tr = traza();
+res = await despuesDeCalendario('agendar_cita', {}, { ok: true, ...CITA }, st,
+  falsoCal({ confirmarReserva: async () => ({ ok: false, error: 'CONFIRMAR_500' }) }), tr);
+ok(res.ok === true && res.espejo_pendiente === true,
+   'la cita sigue en pie y la franja sigue retenida: nadie más la puede tomar', res);
+ok(tr.guardrails.some(g => g.nombre === 'confirmar_reserva'), 'el fallo es visible, no silencioso');
+
+/* sin conectar, ningún enganche actúa */
+const intacto = { ok: true, cupos: [{ cupo_id: 'local' }] };
+ok(await despuesDeCalendario('buscar_cupos', {}, intacto, { cupos: [] }, new CalendarioMemoria(), traza()) === intacto,
+   'sin calendario conectado el agente usa sus herramientas locales, igual que siempre');
+ok(await antesDeCalendario('agendar_cita', { cupo_id: 'x' }, { cupos: [] }, new CalendarioMemoria(), traza()) === null,
+   'y no intenta reservar nada');
+
+const mem2 = new CalendarioMemoria();
+ok((await mem2.disponibilidad()).ok === false && (await mem2.citasEntre({})).length === 0,
+   'el calendario en memoria implementa la misma interfaz, sin inventarse una agenda');
+
 
 /* ============================================================ */
 console.log(`\n${n - fallos}/${n} comprobaciones pasaron`);

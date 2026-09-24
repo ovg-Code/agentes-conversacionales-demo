@@ -35,9 +35,13 @@
    ============================================================ */
 
 import crypto from 'node:crypto';
+import { SEDES } from '../demo/src/kb.js';
+import { registrarCupos } from '../demo/src/tools.js';
 
-const BASE = 'https://www.googleapis.com/calendar/v3';
-const OAUTH = 'https://oauth2.googleapis.com/token';
+/* GCAL_BASE permite apuntar a un doble de la API —para pruebas de
+   extremo a extremo o para un proxy corporativo— sin tocar código. */
+const BASE = (process.env.GCAL_BASE || 'https://www.googleapis.com') + '/calendar/v3';
+const OAUTH = process.env.GCAL_OAUTH || 'https://oauth2.googleapis.com/token';
 
 /* Lo mínimo que hace falta: escribir eventos y leer ocupación.
    Nada de calendar.readonly completo, que daría acceso al contenido
@@ -52,11 +56,15 @@ export const SCOPES = [
    muestre exactamente lo que se escribiría, sin una segunda copia
    de la regla de privacidad que se pueda desviar. */
 export {
-  ZONA, idEventoDesdeCita, tituloEvento, eventoDesdeCita, citaDesdeEvento, filtrarCuposOcupados
+  ZONA, idEventoDesdeCita, tituloEvento, eventoDesdeCita, citaDesdeEvento, filtrarCuposOcupados,
+  idReservaDeFranja, eventoReserva, generarFranjas, esNuestro, horaPanama,
+  etiquetaPanama, etiquetaCortaPanama
 } from '../demo/src/calendario-mapeo.js';
 
 import {
-  ZONA, idEventoDesdeCita, eventoDesdeCita, citaDesdeEvento, filtrarCuposOcupados
+  ZONA, idEventoDesdeCita, eventoDesdeCita, citaDesdeEvento, filtrarCuposOcupados,
+  idReservaDeFranja, eventoReserva, generarFranjas, esNuestro,
+  etiquetaPanama, etiquetaCortaPanama
 } from '../demo/src/calendario-mapeo.js';
 
 /* Un calendario por sede. Así la recepción de la 75E ve su día sin
@@ -214,6 +222,188 @@ export class CalendarioGoogle {
     };
   }
 
+  /* ==========================================================
+     La agenda ES Calendar
+     ----------------------------------------------------------
+     Todo lo que sigue solo tiene sentido en el escenario donde
+     Google Calendar no es un espejo sino el sistema real: la
+     disponibilidad se calcula contra él y la cita se retiene con
+     un candado construido sobre la única garantía que su API
+     ofrece — que el id de un evento es único en un calendario.
+     ========================================================== */
+
+  /* events.list sobre una ventana. singleEvents expande las series
+     periódicas: un mantenimiento "todos los martes" tiene que
+     aparecer como el martes concreto que bloquea. */
+  async listarEventos({ sede, desde, hasta }) {
+    const calId = this.calendarios[sede];
+    if (!calId) return { ok: false, error: 'SEDE_SIN_CALENDARIO', eventos: [] };
+    const params = new URLSearchParams({
+      timeMin: new Date(desde).toISOString(),
+      timeMax: new Date(hasta).toISOString(),
+      singleEvents: 'true',
+      orderBy: 'startTime',
+      maxResults: '2500'
+    });
+    const { status, datos } = await this._llamar(
+      'GET', `/calendars/${encodeURIComponent(calId)}/events?${params}`
+    );
+    if (status >= 400) return { ok: false, error: `LIST_${status}`, eventos: [] };
+    return { ok: true, eventos: (datos.items || []).filter(e => e.status !== 'cancelled') };
+  }
+
+  /* Disponibilidad real: el horario del centro menos lo ocupado.
+     Ya no se inventa un cupo; se descarta lo que Calendar dice que
+     está tomado, venga de donde venga. */
+  async disponibilidad({ duracionMin = 30, desde, dias = 14, preferencia = 'cualquiera',
+                         sede = 'cualquiera', limite = 3, estudioId = null, ahora = Date.now() }) {
+    const sedes = sede && sede !== 'cualquiera' ? [sede] : Object.keys(this.calendarios);
+    if (!sedes.length) return { ok: false, error: 'SIN_CALENDARIOS', cupos: [] };
+
+    const franjas = generarFranjas({ desde, dias, duracionMin, preferencia, sedes, ahora });
+    if (!franjas.length) return { ok: true, cupos: [] };
+
+    const marcas = franjas.map(f => new Date(f.inicio).getTime());
+    const ocupacion = await this.libreOcupado({
+      desde: new Date(Math.min(...marcas)),
+      hasta: new Date(Math.max(...marcas) + duracionMin * 60000),
+      sedes
+    });
+
+    const libres = franjas.filter(f => {
+      const o = ocupacion[f.sede];
+      /* Una sede cuyo calendario no se pudo leer no se ofrece. En
+         modo espejo se podía asumir libre; aquí no: si Calendar es
+         la agenda, no leerla es no saber nada. */
+      if (!o || !o.busy) return false;
+      return filtrarCuposOcupados([f], o.busy).length === 1;
+    });
+
+    return { ok: true, cupos: repartir(libres, limite).map(f => ({
+      cupo_id: idReservaDeFranja(f.sede, f.inicio),
+      inicio: f.inicio,
+      sede: f.sede,
+      duracion_min: f.duracion_min,
+      estudio_id: estudioId
+    })) };
+  }
+
+  /* ----------------------------------------------------------
+     reservar() — el candado
+     ----------------------------------------------------------
+     1. Insertar un evento tentativo con id derivado de la franja.
+        Dos reservas del mismo inicio chocan en el mismo id: la
+        segunda recibe 409. Eso es atómico y lo garantiza Google.
+     2. Releer la ventana. El paso 1 no cubre los solapamientos
+        parciales —45 min a las 7:00 y 25 min a las 7:30 tienen
+        ids distintos— ni los bloqueos que una persona acaba de
+        poner a mano.
+     3. Si hay conflicto: un evento ajeno gana siempre (quien está
+        delante del paciente manda). Entre dos reservas nuestras
+        gana la de id menor, que es un criterio determinista: la
+        otra parte llega a la conclusión contraria y se retira, así
+        que no hay ni bloqueo mutuo ni doble cita.
+     ---------------------------------------------------------- */
+  async reservar({ sede, inicio, duracionMin = 30, estudioId = null, ventanaMin = 90 }) {
+    const calId = this.calendarios[sede];
+    if (!calId) return { ok: false, error: 'SEDE_SIN_CALENDARIO' };
+
+    const ev = eventoReserva({ sede, inicio, duracionMin, estudioId });
+    const ruta = `/calendars/${encodeURIComponent(calId)}/events`;
+    let r = await this._llamar('POST', ruta, ev);
+
+    if (r.status === 409) {
+      /* Un id de evento borrado sigue reservado en Google. Si la
+         franja se liberó antes, el evento existe pero cancelado y
+         se revive; si está vivo, la franja está tomada de verdad. */
+      const previo = await this._llamar('GET', `${ruta}/${ev.id}`);
+      if (previo.status < 400 && previo.datos.status === 'cancelled') {
+        r = await this._llamar('PATCH', `${ruta}/${ev.id}`,
+          { status: 'tentative', start: ev.start, end: ev.end,
+            summary: ev.summary, extendedProperties: ev.extendedProperties });
+      } else {
+        return { ok: false, error: 'FRANJA_TOMADA', motivo: 'id_ocupado' };
+      }
+    }
+    if (r.status >= 400) return { ok: false, error: `RESERVA_${r.status}` };
+
+    // --- Reverificación ---
+    const ini = new Date(inicio).getTime();
+    const fin = ini + duracionMin * 60000;
+    const lista = await this.listarEventos({
+      sede, desde: new Date(ini - ventanaMin * 60000), hasta: new Date(fin + ventanaMin * 60000)
+    });
+    if (!lista.ok) {
+      await this.liberar({ sede, inicio });
+      return { ok: false, error: 'RESERVA_NO_VERIFICABLE', detalle: lista.error };
+    }
+
+    const choca = lista.eventos.filter(e => {
+      if (e.id === ev.id) return false;
+      const a = new Date(e.start && (e.start.dateTime || e.start.date)).getTime();
+      const b = new Date(e.end && (e.end.dateTime || e.end.date)).getTime();
+      return a < fin && ini < b;
+    });
+
+    const ajeno = choca.find(e => !esNuestro(e));
+    const nuestroMenor = choca.find(e => esNuestro(e) && e.id < ev.id);
+    if (ajeno || nuestroMenor) {
+      await this.liberar({ sede, inicio });
+      return { ok: false, error: 'FRANJA_TOMADA',
+               motivo: ajeno ? 'bloqueo_del_centro' : 'carrera_perdida' };
+    }
+
+    return { ok: true, reserva_id: ev.id, inicio, sede, duracion_min: duracionMin,
+             etag: r.datos.etag || null };
+  }
+
+  /* Liberar una franja retenida. Borrar y no cancelar a propósito:
+     así el hueco vuelve a estar disponible en freeBusy de inmediato. */
+  async liberar({ sede, inicio }) {
+    const calId = this.calendarios[sede];
+    if (!calId) return { ok: false, error: 'SEDE_SIN_CALENDARIO' };
+    const id = idReservaDeFranja(sede, inicio);
+    const { status } = await this._llamar('DELETE', `/calendars/${encodeURIComponent(calId)}/events/${id}`);
+    if (status === 404 || status === 410) return { ok: true, existia: false };
+    if (status >= 400) return { ok: false, error: `LIBERAR_${status}` };
+    return { ok: true, existia: true };
+  }
+
+  /* La reserva se convierte en la cita. El evento no cambia de id:
+     sigue siendo el de la franja, que es lo que mantiene el candado
+     puesto mientras exista la cita. */
+  async confirmarReserva({ sede, inicio, cita }) {
+    const calId = this.calendarios[sede];
+    if (!calId) return { ok: false, error: 'SEDE_SIN_CALENDARIO' };
+    const id = idReservaDeFranja(sede, inicio);
+    const plantilla = eventoDesdeCita({ ...cita, sede, inicio });
+    const { status, datos } = await this._llamar(
+      'PATCH', `/calendars/${encodeURIComponent(calId)}/events/${id}`,
+      { summary: plantilla.summary, description: plantilla.description,
+        status: 'confirmed', extendedProperties: plantilla.extendedProperties }
+    );
+    if (status >= 400) return { ok: false, error: `CONFIRMAR_${status}` };
+    return { ok: true, evento_id: id, etag: datos.etag || null, enlace: datos.htmlLink || null };
+  }
+
+  /* Las citas de un rango, para la agenda del CRM. Los eventos sin
+     cita_id son bloqueos del centro y se devuelven marcados: la
+     recepción necesita verlos, pero no son pacientes. */
+  async citasEntre({ desde, hasta, sedes }) {
+    const destino = sedes && sedes.length ? sedes : Object.keys(this.calendarios);
+    const out = [];
+    for (const sede of destino) {
+      const r = await this.listarEventos({ sede, desde, hasta });
+      if (!r.ok) { out.push({ sede, error: r.error }); continue; }
+      for (const e of r.eventos) {
+        const c = citaDesdeEvento(e);
+        if (c.cancelada) continue;
+        out.push({ ...c, sede, evento_id: e.id, tentativa: e.status === 'tentative' });
+      }
+    }
+    return out;
+  }
+
   /* events.watch: el canal caduca (Calendar da días, no meses), así
      que se renueva con un cron. La notificación llega con
      X-Goog-Resource-State y sin cuerpo útil. */
@@ -227,6 +417,29 @@ export class CalendarioGoogle {
     if (status >= 400) return { ok: false, error: `WATCH_${status}` };
     return { ok: true, canal: datos.id, recurso: datos.resourceId, expira: Number(datos.expiration) || null };
   }
+}
+
+/* Ofrecer las tres primeras franjas libres da tres horas seguidas
+   del mismo día. Se reparten por día para que el paciente elija de
+   verdad, que es lo que hace una recepcionista. */
+function repartir(franjas, limite) {
+  const porDia = new Map();
+  for (const f of franjas) {
+    const dia = f.inicio.slice(0, 10);
+    if (!porDia.has(dia)) porDia.set(dia, []);
+    porDia.get(dia).push(f);
+  }
+  const dias = [...porDia.values()];
+  const out = [];
+  for (let i = 0; out.length < limite && i < 40; i++) {
+    let avanzo = false;
+    for (const d of dias) {
+      if (out.length >= limite) break;
+      if (d[i]) { out.push(d[i]); avanzo = true; }
+    }
+    if (!avanzo) break;
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------ */
@@ -303,68 +516,134 @@ export function crearCalendario(env = process.env, deps = {}) {
 }
 
 /* ------------------------------------------------------------ */
-/* Pegamento: el espejo dentro del turno del agente               */
+/* Métodos de agenda en el calendario en memoria                  */
 /* ------------------------------------------------------------ */
-/* Se llama justo después del ejecutor, donde el loop ya es async.
-   Dos únicos puntos de contacto, que son los dos que importan:
+/* Existen para que la interfaz sea una sola. El servidor nunca
+   pregunta "¿hay Google?": pregunta `conectado`, y si no lo está,
+   el agente usa sus herramientas locales como siempre. */
+Object.assign(CalendarioMemoria.prototype, {
+  async listarEventos() { return { ok: false, error: 'SIN_CALENDARIO', eventos: [] }; },
+  async disponibilidad() { return { ok: false, error: 'SIN_CALENDARIO', cupos: [] }; },
+  async reservar() { return { ok: false, error: 'SIN_CALENDARIO' }; },
+  async liberar() { return { ok: true, existia: false }; },
+  async confirmarReserva() { return { ok: false, error: 'SIN_CALENDARIO' }; },
+  async citasEntre() { return []; }
+});
 
-     buscar_cupos  → resta la ocupación real antes de ofrecer
-     agendar_cita  → escribe el espejo una vez que la cita existe
+/* ============================================================
+   El calendario dentro del turno del agente
+   ------------------------------------------------------------
+   Dos enganches alrededor del ejecutor, y el orden entre ellos es
+   la parte importante:
 
-   El orden no es negociable. Primero la cita en nuestro sistema,
-   después el evento en Google. Si se invierte, un fallo de red deja
-   un evento sin cita: una hora bloqueada que nadie reclama. */
-export async function espejarEnCalendario(nombre, res, st, calendario, trace) {
-  if (!calendario || !calendario.conectado || !res || res.ok === false) return res;
+     antes  · agendar_cita → se toma la franja en Calendar. Si ya
+              está tomada, el ejecutor ni siquiera llega a correr y
+              el modelo recibe un error que sabe manejar.
+     después· buscar_cupos → los cupos ofrecidos son los de Calendar
+              agendar_cita → la reserva se convierte en la cita, o
+              se libera si una precondición rechazó el agendamiento.
 
-  if (nombre === 'buscar_cupos' && Array.isArray(st.cupos) && st.cupos.length) {
-    const marcas = st.cupos.map(c => new Date(c.inicio).getTime());
-    const desde = new Date(Math.min(...marcas));
-    const hasta = new Date(Math.max(...marcas) + 4 * 3600 * 1000);
-    const sedes = [...new Set(st.cupos.map(c => c.sede))];
-    let ocupacion;
-    try {
-      ocupacion = await calendario.libreOcupado({ desde, hasta, sedes });
-    } catch (err) {
-      /* Sin poder consultar el calendario no se afirma disponibilidad.
-         Se ofrece el cupo, pero sujeto a confirmación: en un centro de
-         imagen, prometer una hora que el equipo tiene en mantenimiento
-         cuesta más que pedir una confirmación. */
-      if (trace) trace.guardrails.push({ nombre: 'freebusy', resultado: 'no disponible · ' + err.message });
-      return { ...res, verificacion_externa: 'no_disponible',
-               nota: 'La disponibilidad no pudo verificarse contra el calendario del centro. Ofrece el horario como sujeto a confirmación.' };
+   Reservar antes y confirmar después es lo que evita el caso feo:
+   una cita creada en nuestro sistema para una hora que otro acababa
+   de ocupar. Y liberar en el camino de rechazo es lo que evita el
+   otro: una franja retenida por una cita que nunca existió.
+   ============================================================ */
+
+export async function antesDeCalendario(nombre, input, st, calendario, trace) {
+  if (!calendario || !calendario.conectado) return null;
+  if (nombre !== 'agendar_cita') return null;
+
+  const cupo = (st.cupos || []).find(c => c.cupo_id === input.cupo_id);
+  /* Un cupo_id que no salió de buscar_cupos no se reserva: de eso
+     ya se encarga la precondición del ejecutor, y duplicarla aquí
+     solo serviría para escribir en Calendar por una alucinación. */
+  if (!cupo) return null;
+
+  const r = await calendario.reservar({
+    sede: cupo.sede, inicio: cupo.inicio,
+    duracionMin: cupo.duracion_min, estudioId: input.estudio_id
+  }).catch(err => ({ ok: false, error: err.message }));
+
+  if (!r.ok) {
+    if (trace) trace.tools.push({ nombre: 'calendario.reservar', resultado: r.error + (r.motivo ? ' · ' + r.motivo : '') });
+    if (r.error === 'FRANJA_TOMADA') {
+      st.cupos = (st.cupos || []).filter(c => c.cupo_id !== input.cupo_id);
+      return { ok: false, error: 'CUPO_NO_VIGENTE',
+               mensaje: 'Ese horario lo tomaron mientras conversaban. Vuelve a consultar disponibilidad y ofrece otro.' };
     }
-
-    const antes = st.cupos.length;
-    st.cupos = st.cupos.filter(c => {
-      const o = ocupacion[c.sede];
-      if (!o || !o.busy) return true;                 // sede sin dato: no se descarta a ciegas
-      return filtrarCuposOcupados([c], o.busy).length === 1;
-    });
-    if (trace && st.cupos.length !== antes) {
-      trace.tools.push({ nombre: 'calendario.freeBusy', resultado: `${antes - st.cupos.length} cupo(s) descartado(s) por ocupación real` });
-    }
-    if (!st.cupos.length) {
-      return { ok: true, cupos: [], verificacion_externa: 'sin_disponibilidad',
-               nota: 'El calendario del centro no tiene hueco en ese rango. Pregunta por otra fecha o preferencia de horario.' };
-    }
-    return { ...res, verificacion_externa: 'ok',
-             cupos: res.cupos.filter(c => st.cupos.some(s => s.cupo_id === c.cupo_id)) };
+    return { ok: false, error: 'AGENDA_NO_DISPONIBLE',
+             mensaje: 'No se pudo confirmar el horario contra la agenda del centro. Escala a una persona.' };
   }
 
-  if (nombre === 'agendar_cita' && res.cita_id) {
-    const r = await calendario.crearEvento(res).catch(err => ({ ok: false, error: err.message }));
-    if (!r.ok) {
-      /* La cita es válida: existe en nuestro sistema, que es la verdad.
-         Lo que queda pendiente es el espejo, y se reintenta fuera del
-         turno. Al paciente no se le dice nada de esto. */
-      if (trace) trace.guardrails.push({ nombre: 'espejo_calendario', resultado: 'pendiente · ' + r.error });
+  st.reserva = { sede: cupo.sede, inicio: cupo.inicio, reserva_id: r.reserva_id };
+  if (trace) trace.tools.push({ nombre: 'calendario.reservar', resultado: 'franja retenida · ' + r.reserva_id });
+  return null;
+}
+
+export async function despuesDeCalendario(nombre, input, res, st, calendario, trace) {
+  if (!calendario || !calendario.conectado || !res) return res;
+
+  /* --- La disponibilidad sale de Calendar, no del generador --- */
+  if (nombre === 'buscar_cupos') {
+    const duracion = (st.cupos && st.cupos[0] && st.cupos[0].duracion_min) || 30;
+    const d = await calendario.disponibilidad({
+      duracionMin: duracion, sede: input.sede, preferencia: input.preferencia_horario,
+      estudioId: input.estudio_id, limite: 3
+    }).catch(err => ({ ok: false, error: err.message, cupos: [] }));
+
+    if (!d.ok) {
+      if (trace) trace.guardrails.push({ nombre: 'agenda_calendar', resultado: 'no disponible · ' + d.error });
+      st.cupos = [];
+      return { ok: false, error: 'AGENDA_NO_DISPONIBLE',
+               mensaje: 'La agenda del centro no responde. No ofrezcas horarios: escala a una persona.' };
+    }
+
+    st.cupos = d.cupos.map(c => ({
+      ...c,
+      etiqueta: etiquetaPanama(c.inicio),
+      sede_nombre: ((SEDES[c.sede] && SEDES[c.sede].nombre) || c.sede)
+    }));
+    registrarCupos(st.cupos);
+    if (trace) trace.tools.push({ nombre: 'calendario.disponibilidad', resultado: `${st.cupos.length} cupo(s) reales` });
+
+    if (!st.cupos.length) {
+      return { ok: true, cupos: [],
+               nota: 'La agenda del centro no tiene hueco en las próximas dos semanas con esa preferencia. Pregunta por otra franja horaria o por la otra sede.' };
+    }
+    return { ok: true, estudio: res.estudio, cupos: st.cupos.map(c => ({
+      cupo_id: c.cupo_id, cuando: c.etiqueta, sede: c.sede_nombre,
+      corto: etiquetaCortaPanama(c.inicio)
+    })) };
+  }
+
+  /* --- La reserva se vuelve cita, o se suelta --- */
+  if (nombre === 'agendar_cita' && st.reserva) {
+    const reserva = st.reserva;
+    st.reserva = null;
+
+    if (res.ok === false) {
+      /* Una precondición rechazó el agendamiento: consentimiento,
+         screening o cupo. La franja no puede quedarse retenida. */
+      await calendario.liberar(reserva).catch(() => {});
+      if (trace) trace.tools.push({ nombre: 'calendario.liberar', resultado: 'franja devuelta tras rechazo' });
+      return res;
+    }
+
+    const c = await calendario.confirmarReserva({
+      sede: reserva.sede, inicio: reserva.inicio, cita: res
+    }).catch(err => ({ ok: false, error: err.message }));
+
+    if (!c.ok) {
+      /* La cita existe en nuestro sistema y la franja sigue retenida
+         en Calendar: nadie más la puede tomar. Lo que falta es
+         completar el evento, y eso se reintenta fuera del turno. */
+      if (trace) trace.guardrails.push({ nombre: 'confirmar_reserva', resultado: 'pendiente · ' + c.error });
       if (st.cita) st.cita.espejoPendiente = true;
       return { ...res, espejo_pendiente: true };
     }
-    if (st.cita) st.cita.googleEventoId = r.evento_id;
-    if (trace) trace.tools.push({ nombre: 'calendario.events.insert', resultado: r.duplicado ? 'ya existía (idempotente)' : r.evento_id });
-    return { ...res, google_evento_id: r.evento_id };
+    if (st.cita) st.cita.googleEventoId = c.evento_id;
+    if (trace) trace.tools.push({ nombre: 'calendario.confirmarReserva', resultado: c.evento_id });
+    return { ...res, google_evento_id: c.evento_id };
   }
 
   return res;
