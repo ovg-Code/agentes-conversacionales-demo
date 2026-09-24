@@ -27,7 +27,7 @@
     <span class="badge-demo">DEMO · datos ficticios</span>
     <span class="pill muted" id="mode-badge" title="Detectando modo…">detectando…</span>
     <div class="topbar-spacer"></div>
-    <a class="ctl" href="crm.html" title="Abrir el CRM: la bandeja del equipo humano"><span data-icono="informes" data-icono-size="15"></span> CRM</a>
+    <a class="ctl" href="crm.html" data-hermana="crm.html" title="Abrir el CRM: otra aplicación, la bandeja del equipo humano"><span data-icono="informes" data-icono-size="15"></span> Ir al CRM →</a>
     <button class="ctl" id="theme" type="button"><span data-icono="luna" data-icono-size="15"></span> <span id="theme-txt">Oscuro</span></button>
     <button class="ctl primary" id="reset" type="button">↺ Reiniciar conversación</button>
   </header>
@@ -73,7 +73,8 @@
     </section>
 
     <!-- ============ Consola del equipo ============ -->
-    <section class="inspector" aria-label="Consola del agente">
+    <section class="inspector" aria-label="Inspector del agente">
+      <span class="stage-label">Detrás del mensaje · traza del agente</span>
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" aria-selected="true"  data-panel="panel-traces"    id="tab-traces">Inspector del agente</button>
         <button class="tab" role="tab" aria-selected="false" data-panel="panel-scenarios" id="tab-scen">Escenarios</button>
@@ -84,13 +85,20 @@
       <div class="tabpanel" id="panel-traces" role="tabpanel" aria-labelledby="tab-traces">
         <div id="traces">
           <div class="empty-state" id="traces-empty">
-            Envía un mensaje para ver la traza del agente: intención, herramientas, guardrails y decisión de escalamiento.
+            <strong>Esto no es el CRM.</strong>
+            Es el inspector: lo que el agente piensa y hace por dentro en cada turno —intención,
+            herramientas, guardrails y decisión de escalamiento—. Sirve para depurar, no para atender.
+            <br><br>
+            La bandeja del equipo humano es una aplicación aparte:
+            <a class="doc-link" href="crm.html" data-hermana="crm.html">abrir el CRM</a>.
+            <br><br>
+            Envía un mensaje para ver la primera traza.
           </div>
         </div>
       </div>
 
       <div class="tabpanel" id="panel-scenarios" role="tabpanel" aria-labelledby="tab-scen" hidden>
-        <div class="crm-section">
+        <div class="panel-bloque">
           <h3>Escenarios de prueba</h3>
           <p style="font-size:13px;color:var(--text-secondary);margin:0 0 16px">
             Cada escenario reinicia la conversación y la reproduce paso a paso.
@@ -105,15 +113,21 @@
       </div>
 
       <div class="tabpanel" id="panel-about" role="tabpanel" aria-labelledby="tab-about" hidden>
-        <div class="crm-section">
+        <div class="panel-bloque">
           <h3>Qué es esto</h3>
-          <div class="crm-card" style="font-size:13.5px;line-height:1.6">
+          <div class="panel-ficha" style="font-size:13.5px;line-height:1.6">
             <p style="margin-top:0">
               Banco de pruebas del agente conversacional propuesto para
               <strong>Open Side</strong>, centro de diagnóstico por imagen en Ciudad de Panamá.
               Esta página es el <strong>chat</strong>: lo que ve el paciente en WhatsApp, más el
               inspector con la traza interna del agente. El <strong>CRM</strong> —la bandeja del
-              equipo humano— es una aplicación aparte, en <a href="crm.html">crm.html</a>.
+              equipo humano— es una aplicación aparte, en <a href="crm.html" data-hermana="crm.html">crm.html</a>.
+            </p>
+            <p>
+              El panel de la derecha <strong>no es el CRM</strong>: es el inspector. Vive pegado al
+              chat a propósito, porque su único trabajo es enseñar qué pasó en el mensaje que acabas
+              de enviar —qué intención se detectó, qué herramientas se llamaron, qué guardrail
+              bloqueó—. En producción ese panel no existe: es una herramienta de desarrollo.
             </p>
             <p>
               Esta página <strong>no es un canal real de Open Side</strong> y no envía mensajes
@@ -123,9 +137,9 @@
           </div>
         </div>
 
-        <div class="crm-section">
+        <div class="panel-bloque">
           <h3>Arquitectura que se está simulando</h3>
-          <div class="crm-card" style="font-size:13.5px;line-height:1.7">
+          <div class="panel-ficha" style="font-size:13.5px;line-height:1.7">
             <ol style="margin:0;padding-left:20px">
               <li>Triage determinista <strong>antes</strong> del modelo (emergencias, handoff, diagnóstico)</li>
               <li>Guardrails de entrada: enmascarado de PII y anti-inyección</li>
@@ -138,13 +152,13 @@
           </div>
         </div>
 
-        <div class="crm-section">
+        <div class="panel-bloque">
           <h3>Documentación</h3>
-          <div class="crm-card">
-            <div class="crm-row"><span class="k">Investigación</span><span class="v"><a class="doc-link" href="../docs/01-investigacion.md">01-investigacion.md</a></span></div>
-            <div class="crm-row"><span class="k">Arquitectura</span><span class="v"><a class="doc-link" href="../docs/02-arquitectura.md">02-arquitectura.md</a></span></div>
-            <div class="crm-row"><span class="k">Sistema de diseño</span><span class="v"><a class="doc-link" href="../docs/03-design-system.md">03-design-system.md</a></span></div>
-            <div class="crm-row"><span class="k">Playbook del agente</span><span class="v"><a class="doc-link" href="../docs/04-agente-playbook.md">04-agente-playbook.md</a></span></div>
+          <div class="panel-ficha">
+            <div class="panel-fila"><span class="k">Investigación</span><span class="v"><a class="doc-link" href="../docs/01-investigacion.md">01-investigacion.md</a></span></div>
+            <div class="panel-fila"><span class="k">Arquitectura</span><span class="v"><a class="doc-link" href="../docs/02-arquitectura.md">02-arquitectura.md</a></span></div>
+            <div class="panel-fila"><span class="k">Sistema de diseño</span><span class="v"><a class="doc-link" href="../docs/03-design-system.md">03-design-system.md</a></span></div>
+            <div class="panel-fila"><span class="k">Playbook del agente</span><span class="v"><a class="doc-link" href="../docs/04-agente-playbook.md">04-agente-playbook.md</a></span></div>
           </div>
         </div>
       </div>

@@ -21,6 +21,7 @@ import {
 } from './crm-data.js';
 import { formatearTexto } from './ui.js';
 import { pintarIconos, icono } from './iconos.js';
+import { enlazarHermanas } from './hermanas.js';
 import { renderPacientes, renderInformes, renderAjustes } from './crm-secciones.js';
 import { ejecutarMacro, ejecutarEnBloque, ejecutarAccion } from './crm-acciones.js';
 import {
@@ -1324,6 +1325,7 @@ function actualizarBadgeRail() {
    ============================================================ */
 function montar() {
   pintarIconos();
+  enlazarHermanas();
   // Vistas de la bandeja
   $$('.inbox-filter').forEach(b => b.addEventListener('click', () => {
     vista = b.dataset.vista;

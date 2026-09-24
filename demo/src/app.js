@@ -7,6 +7,7 @@ import { resetEstadoHerramientas } from './tools.js';
 import { ChatUI, renderTraza, renderMetricas, $, $$ } from './ui.js';
 import { HORARIO } from './kb.js';
 import { pintarIconos, icono } from './iconos.js';
+import { enlazarHermanas } from './hermanas.js';
 import { publicarConversacion, publicarMensaje, obtenerConversacion, suscribir } from './bus.js';
 
 /* ---------- Escenarios de prueba ---------- */
@@ -296,7 +297,9 @@ function reiniciar() {
   resetEstadoHerramientas();
   agente = createAgent();
   chat.limpiar();
-  $('#traces').innerHTML = '<div class="empty-state" id="traces-empty">Envía un mensaje para ver la traza del agente: intención, herramientas, guardrails y decisión de escalamiento.</div>';
+  // El vacío del inspector se escribe una sola vez, en el HTML; aquí
+  // se restaura tal cual, para que no haya dos versiones del texto.
+  $('#traces').innerHTML = VACIO_INSPECTOR;
   Object.assign(metricas, { turnos: 0, mensajesBot: 0, tools: 0, latencias: [], escalamientos: 0, guardrailsActivados: 0 });
   actualizarMetricas();
   chat.divisorFecha('hoy');
@@ -315,8 +318,12 @@ async function correrEscenario(esc) {
 }
 
 /* ---------- Montaje ---------- */
+let VACIO_INSPECTOR = '';
+
 function montar() {
+  VACIO_INSPECTOR = $('#traces').innerHTML;
   pintarIconos();
+  enlazarHermanas();
   // Sugerencias
   const sug = $('#suggestions');
   SUGERENCIAS.forEach(s => {

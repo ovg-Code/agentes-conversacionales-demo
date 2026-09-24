@@ -203,7 +203,7 @@ export function renderTraza(trace, contenedor) {
   html += `</dl>`;
 
   if (trace.tools.length) {
-    html += `<div><div class="crm-section" style="margin:0 0 8px"><h3>Herramientas</h3></div>`;
+    html += `<div><div class="panel-bloque" style="margin:0 0 8px"><h3>Herramientas</h3></div>`;
     for (const t of trace.tools) {
       const args = JSON.stringify(t.args, null, 1).replace(/\n\s*/g, ' ').slice(0, 220);
       const res = JSON.stringify(t.resultado, null, 1).replace(/\n\s*/g, ' ').slice(0, 260);
@@ -218,7 +218,7 @@ export function renderTraza(trace, contenedor) {
     html += `<div style="color:var(--text-secondary);font-size:13px">Sin llamadas a herramientas en este turno.</div>`;
   }
 
-  html += `<div><div class="crm-section" style="margin:0 0 8px"><h3>Guardrails</h3></div>
+  html += `<div><div class="panel-bloque" style="margin:0 0 8px"><h3>Guardrails</h3></div>
     <div class="guard-list">` +
     trace.guardrails.map(g => {
       const malo = /BLOQUE|ALERTA/.test(g.resultado);
@@ -228,7 +228,7 @@ export function renderTraza(trace, contenedor) {
 
   if (trace.escalamiento) {
     const e = trace.escalamiento;
-    html += `<div><div class="crm-section" style="margin:0 0 8px"><h3>Escalamiento</h3></div>
+    html += `<div><div class="panel-bloque" style="margin:0 0 8px"><h3>Escalamiento</h3></div>
       <dl class="kv">
         <dt>Motivo</dt><dd>${e.motivo}</dd>
         <dt>Prioridad</dt><dd>${e.prioridad}</dd>
@@ -256,12 +256,12 @@ export function renderMetricas(m, contenedor) {
     ${tarjeta(m.escalamientos, 'Escalamientos')}
     ${tarjeta(m.guardrailsActivados, 'Guardrails activados')}
   </div>
-  <div class="crm-section" style="margin-top:24px">
+  <div class="panel-bloque" style="margin-top:24px">
     <h3>Costo estimado del canal</h3>
-    <div class="crm-card">
-      <div class="crm-row"><span class="k">Mensajes de servicio enviados</span><span class="v">${m.mensajesBot}</span></div>
-      <div class="crm-row"><span class="k">Mensajes por resolución</span><span class="v">${m.turnos ? (m.mensajesBot / Math.max(1, m.turnos)).toFixed(1) : '0'}</span></div>
-      <div class="crm-row"><span class="k">Ventana de 24h</span><span class="v">abierta</span></div>
+    <div class="panel-ficha">
+      <div class="panel-fila"><span class="k">Mensajes de servicio enviados</span><span class="v">${m.mensajesBot}</span></div>
+      <div class="panel-fila"><span class="k">Mensajes por resolución</span><span class="v">${m.turnos ? (m.mensajesBot / Math.max(1, m.turnos)).toFixed(1) : '0'}</span></div>
+      <div class="panel-fila"><span class="k">Ventana de 24h</span><span class="v">abierta</span></div>
     </div>
     <p style="font-size:12px;color:var(--text-secondary);margin-top:12px">
       Desde el 1 de octubre de 2026 Meta cobra los mensajes de servicio dentro de la ventana

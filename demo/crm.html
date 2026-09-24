@@ -16,7 +16,7 @@
 <body>
 <div class="crm-app">
   <nav class="rail" aria-label="Secciones">
-    <a class="rail-mark" href="index.html" title="Ir al simulador de chat" aria-label="Simulador de chat">OS</a>
+    <a class="rail-mark" href="index.html" data-hermana="index.html" title="Ir al simulador de chat" aria-label="Simulador de chat">OS</a>
     <button class="rail-btn" data-seccion="conversaciones" type="button" aria-label="Conversaciones" title="Conversaciones"><span data-icono="mensajes" data-icono-size="21"></span><span class="rail-badge" id="rail-badge" hidden>0</span><span class="rail-txt">Conversaciones</span></button>
     <button class="rail-btn" data-seccion="agenda" type="button" aria-label="Agenda" title="Agenda"><span data-icono="calendario" data-icono-size="21"></span><span class="rail-txt">Agenda</span></button>
     <button class="rail-btn" data-seccion="pacientes" type="button" aria-label="Pacientes" title="Pacientes"><span data-icono="pacientes" data-icono-size="21"></span><span class="rail-txt">Pacientes</span></button>
@@ -51,7 +51,7 @@
       <div class="conv-avatar" id="yo-avatar" aria-hidden="true">—</div>
       <div class="yo-txt"><strong id="yo-nombre">—</strong><span id="yo-rol">—</span></div>
     </div>
-    <a class="ctl" href="index.html" title="Abrir el simulador de WhatsApp" id="link-chat"><span data-icono="mensajes" data-icono-size="15"></span> Chat</a>
+    <a class="ctl" href="index.html" data-hermana="index.html" title="Abrir el simulador de WhatsApp" id="link-chat"><span data-icono="mensajes" data-icono-size="15"></span> Chat</a>
     <button class="ctl" id="theme" type="button"><span data-icono="luna" data-icono-size="15"></span> <span id="theme-txt">Oscuro</span></button>
   </header>
 
@@ -120,7 +120,7 @@
       <div class="thread" id="thread">
         <div class="thread-empty" id="thread-empty">
           <p><strong>Ninguna conversación seleccionada.</strong></p>
-          <p>Abre el <a href="index.html">simulador de chat</a> en otra pestaña y escribe un mensaje: la conversación aparecerá aquí en vivo, igual que llegaría desde WhatsApp.</p>
+          <p>Abre el <a href="index.html" data-hermana="index.html">simulador de chat</a> en otra pestaña y escribe un mensaje: la conversación aparecerá aquí en vivo, igual que llegaría desde WhatsApp.</p>
         </div>
       </div>
 
