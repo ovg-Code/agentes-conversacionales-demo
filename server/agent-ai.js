@@ -28,6 +28,7 @@ import {
   TERMINOS_EMERGENCIA, TERMINOS_HUMANO, TERMINOS_INTERPRETACION, TERMINOS_RECLAMO,
   buscarEstudio, normalizar, estudioPorId, dentroDeHorario
 } from '../demo/src/kb.js';
+import { crearCalendario, espejarEnCalendario } from './calendario.js';
 
 export const MODELO = process.env.OPENSIDE_MODEL || 'claude-opus-5';
 export const EFFORT = process.env.OPENSIDE_EFFORT || 'medium';
@@ -270,7 +271,10 @@ async function loopAgentico(client, st, trace) {
     const resultados = [];
 
     for (const tu of bloques) {
-      const res = ejecutar(tu.name, tu.input, st, trace);
+      let res = ejecutar(tu.name, tu.input, st, trace);
+      // El calendario externo se consulta y se escribe aquí, donde el
+      // loop ya es asíncrono. Ver server/calendario.js.
+      res = await espejarEnCalendario(tu.name, res, st, CALENDARIO, trace);
       resultados.push({
         type: 'tool_result',
         tool_use_id: tu.id,
@@ -306,6 +310,12 @@ async function loopAgentico(client, st, trace) {
    no contra lo que el modelo afirme en los argumentos. Es la
    diferencia entre una regla y una sugerencia.
    ============================================================ */
+/* Un solo calendario para todo el proceso. Sin configuración es el
+   de memoria, y espejarEnCalendario no hace nada: la demo funciona
+   igual, sin ramas condicionales repartidas por el código. */
+const CALENDARIO = crearCalendario();
+export const calendarioConectado = () => CALENDARIO.conectado;
+
 function ejecutar(nombre, input, st, trace) {
   const t0 = Date.now();
   let res;
@@ -627,6 +637,7 @@ export function snapshotCRM(st) {
       cita_duracion: st.cita ? st.cita.duracion_min : null,
       cita_sede: st.cita ? st.cita.sede : null,
       cita_estudio_id: st.cita ? st.cita.estudio_id : null,
+      cita_google_evento: st.cita ? (st.cita.googleEventoId || null) : null,
       fase: st.escalado ? 'escalado' : (st.cita ? 'cierre' : 'en curso')
     },
     labels: [...st.labels],

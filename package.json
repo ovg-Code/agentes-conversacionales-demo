@@ -9,7 +9,9 @@
     "test": "node demo/tests.mjs",
     "test:loop": "node server/tests-loop.mjs",
     "test:filtros": "node demo/tests-filtros.mjs",
-    "test:agenda": "node demo/tests-agenda.mjs"
+    "test:agenda": "node demo/tests-agenda.mjs",
+    "test:calendario": "node server/tests-calendario.mjs",
+    "test:todo": "node demo/tests.mjs && node demo/tests-filtros.mjs && node demo/tests-agenda.mjs && node server/tests-loop.mjs && node server/tests-calendario.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0"

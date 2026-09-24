@@ -67,3 +67,10 @@ npm run test:agenda    # el modelo, sin navegador
 ```
 
 Comprueba el reparto por día, que el domingo no aparece, la ocupación por sede y que no hay dos citas en la misma sede a la misma hora. En navegador, 22 comprobaciones más: las tres vistas, la ficha, la navegación, el filtro de sede, el enlace con la conversación y que ningún bloque se superpone.
+
+## ¿Y Google Calendar?
+
+La agenda no está conectada a ningún calendario externo: las citas viven en el
+navegador. El diseño de la sincronización, la regla de por qué Google Calendar no
+puede mandar la capacidad de un centro de imagen, y lo que sí está implementado
+del lado del servidor están en [11-google-calendar.md](11-google-calendar.md).

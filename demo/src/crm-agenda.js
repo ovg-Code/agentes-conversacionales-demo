@@ -13,6 +13,7 @@
 import { listarConversaciones } from './bus.js';
 import { SEDES, HORARIO, ESTUDIOS } from './kb.js';
 import { icono } from './iconos.js';
+import { idEventoDesdeCita, tituloEvento, ZONA } from './calendario-mapeo.js';
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -154,6 +155,8 @@ function citasDeConversaciones() {
       aseguradora,
       estado,
       origen: 'agente',
+      // Presente solo si el servidor tiene un calendario conectado.
+      googleEventoId: conv.cita_google_evento || null,
       idConversacion: c.id
     });
   }
@@ -417,6 +420,43 @@ function enlazar(contenedor, alClic) {
   }
 }
 
+/* ------------------------------------------------------------
+   Sincronización con un calendario externo
+   ------------------------------------------------------------
+   En la demo no hay calendario conectado: la agenda vive en el
+   navegador. Pero la ficha no se queda callada, porque la pregunta
+   sale siempre. Muestra el estado real y, sobre todo, muestra
+   exactamente qué se escribiría afuera: el título sin nombre del
+   paciente y el identificador derivado de la cita. Así se ve que
+   los datos sensibles no salen del sistema.
+   Diseño completo: docs/11-google-calendar.md
+   ------------------------------------------------------------ */
+export function bloqueSincronizacion(cita) {
+  const conectado = Boolean(cita.googleEventoId);
+  let idEvento = null;
+  try { idEvento = idEventoDesdeCita(cita.id); } catch { idEvento = null; }
+
+  const fila = (k, v) => `<div class="attr"><span class="k">${k}</span><span class="v">${esc(v ?? '—')}</span></div>`;
+
+  return `<div class="ctx-block">
+      <h3>Google Calendar</h3>
+      <div class="attr">
+        <span class="k">estado</span>
+        <span class="v"><span class="pill ${conectado ? 'ok' : 'muted'}">${conectado ? 'Sincronizada' : 'Sin conectar'}</span></span>
+      </div>
+      ${fila('calendario', `sede ${cita.sede}`)}
+      ${fila('zona', ZONA)}
+      ${fila('evento', cita.googleEventoId || idEvento || '—')}
+      <div class="ficha-espejo">
+        <span class="k">lo que se escribiría afuera</span>
+        <code>${esc(tituloEvento({ estudio: cita.estudio, cita_id: cita.id }))}</code>
+      </div>
+      <p class="ficha-aviso neutro">${conectado
+        ? 'El evento refleja esta cita. La capacidad la manda el sistema, no el calendario.'
+        : 'Esta demo no escribe en ningún calendario. Al conectarlo, el evento se crea con ese identificador y ese título: sin nombre, teléfono ni aseguradora del paciente.'}</p>
+    </div>`;
+}
+
 /* ---------- Ficha de una cita ---------- */
 export function renderFicha(contenedor, cita, alAbrirConversacion) {
   if (!cita) {
@@ -466,6 +506,8 @@ export function renderFicha(contenedor, cita, alAbrirConversacion) {
       <h3>Preparación</h3>
       <p class="ficha-prep">${estudio.ayuno ? 'Requiere <strong>ayuno de 4 a 6 horas</strong>. ' : 'No requiere ayuno. '}${estudio.contrasteFrecuente ? 'Puede necesitar medio de contraste.' : ''}</p>
     </div>` : ''}
+
+    ${bloqueSincronizacion(cita)}
 
     <div class="ctx-block">
       <h3>Origen</h3>

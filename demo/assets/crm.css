@@ -1548,6 +1548,24 @@ button.tabla-fila:active { transform: scale(0.995); }
   background: var(--sem-warning-bg); color: var(--sem-warning);
   border-radius: var(--r-sm); font-size: var(--fs-xs); line-height: 1.5;
 }
+/* El título del evento se enseña entero: cortarlo con puntos
+   suspensivos anularía el motivo de enseñarlo. */
+.ficha-espejo { padding: var(--sp-2) 0; }
+.ficha-espejo .k {
+  display: block; margin-bottom: 6px;
+  font-size: var(--fs-xs); color: var(--text-secondary);
+}
+.ficha-espejo code {
+  display: block; padding: var(--sp-2);
+  background: var(--surface-sunken); border-radius: var(--r-sm);
+  font-family: var(--font-mono); font-size: 11.5px;
+  line-height: 1.5; color: var(--text-primary); overflow-wrap: anywhere;
+}
+
+/* Un aviso informativo, no una alerta: el ámbar aquí mentiría. */
+.ficha-aviso.neutro {
+  background: var(--surface-sunken); color: var(--text-secondary);
+}
 .ficha-prep, .ficha-origen { margin: 0; font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.6; }
 .ficha-origen { margin-bottom: var(--sp-3); }
 
