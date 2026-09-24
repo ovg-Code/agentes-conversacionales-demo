@@ -1357,3 +1357,205 @@ button.tabla-fila:active { transform: scale(0.995); }
   font-size: 10px; background: var(--surface-sunken); color: var(--text-secondary);
   padding: 1px 5px; border-radius: 4px;
 }
+
+/* ============================================================
+   Agenda de citas
+   ============================================================ */
+.agenda-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr) 320px;
+  height: 100%; min-height: 0; overflow: hidden;
+}
+.agenda-principal { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.agenda-ficha { border-left: 1px solid var(--surface-border); border-right: 0; }
+
+.agenda-barra {
+  display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  padding: var(--sp-4) var(--sp-5) var(--sp-3);
+  border-bottom: 1px solid var(--surface-border);
+}
+.agenda-nav { display: flex; gap: 2px; }
+.agenda-nav .btn { min-width: 34px; justify-content: center; padding: 6px var(--sp-2); }
+.agenda-titulo { font-size: var(--fs-md); font-weight: var(--fw-titulo); flex: 1; min-width: 0; }
+.agenda-controles { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.agenda-vistas { margin: 0; }
+.agenda-vistas .inbox-filter { padding: 5px var(--sp-3); }
+#ag-sede { min-width: 0; width: auto; font-size: var(--fs-xs); padding: 6px var(--sp-2); }
+
+.agenda-metricas { padding: var(--sp-4) var(--sp-5) 0; }
+.agenda-metricas .tiles { margin-bottom: var(--sp-4); }
+.agenda-vista { flex: 1; overflow: auto; min-height: 0; padding: 0 var(--sp-5) var(--sp-5); }
+
+/* ---------- Rejilla del calendario ---------- */
+.calendario {
+  display: grid;
+  grid-template-columns: 54px repeat(var(--cols), minmax(0, 1fr));
+  gap: 1px;
+  background: var(--surface-border);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.col-horas, .col-dia { background: var(--surface-panel); }
+.col-horas { padding-top: 38px; }
+.franja-hora {
+  position: relative;
+  border-bottom: 1px solid var(--surface-border);
+  font-size: 10.5px; color: var(--text-suave);
+  text-align: right; padding-right: 6px;
+}
+.franja-hora span { position: relative; top: -6px; }
+
+.col-cabecera {
+  height: 38px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-bottom: 1px solid var(--surface-border);
+  background: var(--surface-sunken);
+  position: sticky; top: 0; z-index: 3;
+}
+.col-cabecera strong { font-size: var(--fs-xs); font-weight: var(--fw-titulo); text-transform: capitalize; }
+.col-cabecera span { font-size: 10px; color: var(--text-suave); }
+.col-dia.hoy .col-cabecera { background: var(--acento-suave); }
+.col-dia.hoy .col-cabecera strong { color: var(--acento-texto); }
+
+.col-cuerpo { position: relative; }
+.rejilla { position: absolute; inset: 0; }
+.linea-hora { border-bottom: 1px solid var(--surface-border); }
+.cerrado {
+  position: absolute; left: 0; right: 0;
+  background: repeating-linear-gradient(45deg,
+    transparent, transparent 5px,
+    rgb(var(--slate-12) / .045) 5px, rgb(var(--slate-12) / .045) 10px);
+}
+
+/* La hora actual, para situarse de un vistazo. */
+.linea-ahora { position: absolute; left: 0; right: 0; height: 0; z-index: 4; border-top: 2px solid var(--sem-danger); }
+.linea-ahora span {
+  position: absolute; left: -4px; top: -4px;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--sem-danger);
+}
+
+/* ---------- Bloque de cita ---------- */
+.cita-bloque {
+  position: absolute; z-index: 2;
+  display: flex; flex-direction: column; gap: 0;
+  overflow: hidden; text-align: left;
+  padding: 3px 6px;
+  border: 0; border-left: 3px solid var(--acento);
+  border-radius: var(--r-sm);
+  background: var(--acento-suave);
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .cita-bloque:hover { box-shadow: var(--e-2); z-index: 5; }
+}
+.cita-bloque:active { transform: scale(0.98); }
+.cita-bloque.activa { box-shadow: 0 0 0 2px var(--acento); z-index: 5; }
+.cb-hora { font-size: 9.5px; font-weight: var(--fw-titulo); color: var(--acento-texto); line-height: 1.3; }
+.cb-paciente {
+  font-size: 11px; font-weight: var(--fw-fuerte); line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cb-estudio {
+  font-size: 10px; color: var(--text-secondary); line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Cuando dos citas comparten franja el espacio se reparte: se recorta lo
+   accesorio y se conserva el nombre, que es lo que se busca de un vistazo. */
+/* Bloque bajo: hora y nombre en una sola línea, el estudio queda en el
+   tooltip. Bloque medio: dos líneas, sin el estudio. */
+.cita-bloque.baja {
+  flex-direction: row; align-items: center; gap: 5px;
+  padding: 0 6px;
+}
+.cita-bloque.baja .cb-hora { flex: 0 0 auto; }
+.cita-bloque.baja .cb-paciente { flex: 1; min-width: 0; font-size: 10px; }
+.cita-bloque.baja .cb-estudio { display: none; }
+.cita-bloque.media .cb-estudio { display: none; }
+
+.cita-bloque.estrecha { padding: 2px 4px; }
+.cita-bloque.estrecha .cb-estudio { display: none; }
+.cita-bloque.estrecha .cb-hora { font-size: 9px; }
+.cita-bloque.estrecha .cb-paciente { font-size: 10px; }
+/* El estado se lee en el color del borde y del fondo. */
+.cita-bloque.tono-ok     { border-left-color: var(--sem-success); background: var(--sem-success-bg); }
+.cita-bloque.tono-ok .cb-hora { color: var(--sem-success); }
+.cita-bloque.tono-warn   { border-left-color: var(--sem-warning); background: var(--sem-warning-bg); }
+.cita-bloque.tono-warn .cb-hora { color: var(--sem-warning); }
+.cita-bloque.tono-danger { border-left-color: var(--sem-danger); background: var(--sem-danger-bg); }
+.cita-bloque.tono-danger .cb-hora { color: var(--sem-danger); }
+.cita-bloque.tono-muted  { border-left-color: var(--surface-border-fuerte); background: var(--surface-sunken); opacity: .72; }
+
+/* ---------- Vista lista ---------- */
+.lista-citas { display: grid; gap: 2px; }
+.lista-dia {
+  font-size: 11px; font-weight: var(--fw-titulo);
+  text-transform: uppercase; letter-spacing: .04em; color: var(--text-suave);
+  padding: var(--sp-4) 0 var(--sp-2);
+}
+.lista-cita {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 44px minmax(0, 130px) auto;
+  align-items: center; gap: var(--sp-3);
+  width: 100%; text-align: left;
+  background: var(--surface-panel);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-press) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .lista-cita:hover { border-color: var(--acento-borde); background: var(--acento-suave); }
+}
+.lista-cita:active { transform: scale(0.995); }
+.lista-cita.activa { border-color: var(--acento); background: var(--acento-suave); }
+.lc-hora { font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: var(--fw-fuerte); color: var(--acento-texto); }
+.lc-datos { min-width: 0; display: grid; gap: 1px; }
+.lc-paciente { font-size: var(--fs-sm); font-weight: var(--fw-fuerte); display: flex; align-items: center; gap: 6px; }
+.lc-bot {
+  font-size: 9px; text-transform: uppercase; letter-spacing: .05em;
+  background: var(--sem-ai-bg); color: var(--sem-ai);
+  padding: 1px 5px; border-radius: var(--r-sm); font-weight: var(--fw-titulo);
+}
+.lc-estudio { font-size: 11.5px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-sede { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
+.lc-aseg { font-size: 11.5px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Ficha ---------- */
+.ficha-cabecera {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-2);
+  padding-bottom: var(--sp-4); margin-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--surface-border);
+}
+.ficha-cabecera strong { display: block; font-size: var(--fs-md); font-weight: var(--fw-titulo); }
+.ficha-cabecera span { font-size: var(--fs-xs); color: var(--text-secondary); font-family: var(--font-mono); }
+.ficha-cuando {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--acento-suave);
+  border-radius: var(--r-md);
+  margin-bottom: var(--sp-5);
+  color: var(--acento-texto);
+}
+.ficha-cuando strong { display: block; font-size: var(--fs-sm); font-weight: var(--fw-titulo); text-transform: capitalize; }
+.ficha-cuando span { font-size: var(--fs-xs); opacity: .85; }
+.ficha-aviso {
+  margin: var(--sp-2) 0 0; padding: var(--sp-2) var(--sp-3);
+  background: var(--sem-warning-bg); color: var(--sem-warning);
+  border-radius: var(--r-sm); font-size: var(--fs-xs); line-height: 1.5;
+}
+.ficha-prep, .ficha-origen { margin: 0; font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.6; }
+.ficha-origen { margin-bottom: var(--sp-3); }
+
+@media (max-width: 1100px) {
+  .agenda-layout { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  .agenda-ficha { border-left: 0; border-top: 1px solid var(--surface-border); max-height: 420px; }
+  .agenda-vista { overflow-x: auto; }
+  .calendario { min-width: 640px; }
+  .lista-cita { grid-template-columns: 56px minmax(0, 1fr) auto; }
+  .lc-sede, .lc-aseg { display: none; }
+}

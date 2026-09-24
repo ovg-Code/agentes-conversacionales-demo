@@ -96,6 +96,11 @@ export class ChatUI {
     bubble.innerHTML = html;
 
     if (msg.buttons && msg.buttons.length) {
+      // Los botones de mensajes anteriores dejan de responder: si siguieran
+      // vivos, pulsar una opción vieja mandaría al agente a un paso que ya
+      // pasó. WhatsApp hace lo mismo con sus botones interactivos.
+      $$('.wa-btn', this.thread).forEach(b => { b.disabled = true; });
+
       const wrap = document.createElement('div');
       wrap.className = 'wa-buttons';
       msg.buttons.slice(0, 3).forEach(b => {

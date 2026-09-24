@@ -64,7 +64,13 @@ El chat y el CRM son cosas distintas y viven separadas:
 | Qué muestra | réplica de WhatsApp: burbujas, colitas, checks de leído, indicador de escritura, quick replies | bandeja de tres columnas: conversaciones, hilo, datos del paciente |
 | Extra | inspector con la traza del agente, escenarios y métricas | asignación, prioridad, posponer, SLA, labels, respuestas rápidas, atajos |
 
-**El CRM** tiene cuatro secciones tras un rail de navegación: **Conversaciones**, **Pacientes** (agrupados por cédula o teléfono, con su historial y sus citas), **Informes** (métricas calculadas sobre las conversaciones reales) y **Ajustes** (equipo, labels, respuestas rápidas).
+**El CRM** tiene cinco secciones tras un rail de navegación:
+
+- **Conversaciones** — la bandeja
+- **Agenda** — el calendario de citas en vistas de semana, día (una columna por sede) y lista. Es donde se ve el resultado del agente: cuántas citas hay, qué ocupación, cuáles tienen la autorización pendiente y cuáles las agendó el bot
+- **Pacientes** — agrupados por cédula o teléfono, con su historial y sus citas
+- **Informes** — métricas calculadas sobre las conversaciones reales
+- **Ajustes** — equipo, labels, respuestas rápidas, macros y los umbrales de SLA
 
 En la bandeja, con el modelo de datos de Chatwoot y código propio:
 
@@ -103,8 +109,10 @@ Se comunican por `demo/src/bus.js`, que hace en local lo que en producción hace
 ## Pruebas
 
 ```bash
-npm run test:loop   # 41 comprobaciones del agente de IA
-npm test            # 16 casos del motor de reglas
+npm run test:loop     # 41 comprobaciones del agente de IA
+npm test              # 16 casos del motor de reglas
+npm run test:filtros  # 16 del motor de filtros avanzados
+npm run test:agenda   # el modelo de la agenda
 ```
 
 `server/tests-loop.mjs` ejercita el **loop agéntico real** sustituyendo solo la llamada HTTP por un transporte simulado: verifica precondiciones, triage (cero llamadas a la API en una emergencia), PII que nunca llega al modelo, `refusal`, `pause_turn`, límite de iteraciones y recorte de historial — sin gastar un token.

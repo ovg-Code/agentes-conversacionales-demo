@@ -23,6 +23,11 @@ import { formatearTexto } from './ui.js';
 import { pintarIconos, icono } from './iconos.js';
 import { renderPacientes, renderInformes, renderAjustes } from './crm-secciones.js';
 import { ejecutarMacro, ejecutarEnBloque, ejecutarAccion } from './crm-acciones.js';
+import {
+  renderDia, renderSemana, renderLista, renderFicha,
+  ocupacionDia, citasDelDia, citasDeSemana, inicioDeSemana,
+  diaLargo, diaCorto, esHoy, listarCitas
+} from './crm-agenda.js';
 import { renderResultados } from './crm-buscador.js';
 import {
   ATRIBUTOS, OPERADORES, atributoPorClave, cumple, describir,
@@ -44,6 +49,10 @@ let seleccion = new Set();       // ids marcados para acciones en bloque
 let citando = null;              // mensaje al que se está respondiendo
 let buscadorActivo = 0;
 let resultadosBusqueda = [];
+let agVista = 'semana';
+let agFecha = new Date();
+let agSede = 'todas';
+let agCita = null;
 let condiciones = [];            // filtro avanzado en construcción
 let union = 'y';
 let vistaActiva = null;          // id de la vista guardada aplicada
@@ -969,6 +978,97 @@ function refrescar() {
 }
 
 /* ============================================================
+   Agenda
+   ============================================================ */
+function renderAgenda() {
+  $$('.agenda-vistas .inbox-filter').forEach(b => b.setAttribute('aria-selected', String(b.dataset.agvista === agVista)));
+  $('#ag-titulo').textContent = tituloAgenda();
+  renderMetricasAgenda();
+
+  const cont = $('#ag-vista');
+  const alClic = cita => { agCita = cita; renderFicha($('#ag-ficha'), cita, abrirConversacionDesdeAgenda); marcarCitaActiva(); };
+  if (agVista === 'dia')         renderDia(cont, agFecha, agSede, alClic);
+  else if (agVista === 'semana') renderSemana(cont, agFecha, agSede, alClic);
+  else                           renderLista(cont, agFecha, agSede, alClic);
+
+  renderFicha($('#ag-ficha'), agCita, abrirConversacionDesdeAgenda);
+  marcarCitaActiva();
+}
+
+function marcarCitaActiva() {
+  $$('[data-cita]').forEach(b => b.classList.toggle('activa', agCita && b.dataset.cita === agCita.id));
+}
+
+function abrirConversacionDesdeAgenda(idConversacion) {
+  if (!idConversacion) return;
+  irA('conversaciones');
+  // Puede estar en una vista que ahora no se muestra.
+  if (!conversacionesVisibles().some(c => c.id === idConversacion)) {
+    vista = 'todas';
+    condiciones = [];
+    $$('.inbox-filter[data-vista]').forEach(x => x.setAttribute('aria-selected', String(x.dataset.vista === 'todas')));
+    renderChipFiltro();
+  }
+  seleccionar(idConversacion);
+}
+
+function tituloAgenda() {
+  if (agVista === 'dia') return (esHoy(agFecha) ? 'Hoy · ' : '') + diaLargo(agFecha);
+  if (agVista === 'lista') return 'Próximas citas desde ' + diaLargo(agFecha);
+  const lunes = inicioDeSemana(agFecha);
+  const sabado = new Date(lunes); sabado.setDate(lunes.getDate() + 5);
+  return `${lunes.getDate()} – ${diaLargo(sabado)}`;
+}
+
+function renderMetricasAgenda() {
+  const cont = $('#ag-metricas');
+  const ocup = ocupacionDia(agFecha, agSede);
+
+  if (agVista === 'semana') {
+    const dias = citasDeSemana(agFecha, agSede).filter(d => d.horario);
+    const total = dias.reduce((n, d) => n + d.citas.length, 0);
+    const porAgente = dias.reduce((n, d) => n + d.citas.filter(c => c.origen === 'agente').length, 0);
+    const pendientes = dias.reduce((n, d) => n + d.citas.filter(c => c.estado === 'sin_autorizar' || c.estado === 'sin_orden').length, 0);
+    const media = dias.length
+      ? Math.round(dias.reduce((n, d) => n + (ocupacionDia(d.fecha, agSede)?.porcentaje || 0), 0) / dias.length) : 0;
+    cont.innerHTML = tiles([
+      [total, 'Citas esta semana'],
+      [media + '%', 'Ocupación media'],
+      [pendientes, 'Con algo pendiente', pendientes ? 'autorización u orden' : ''],
+      [porAgente, 'Agendadas por el agente']
+    ]);
+    return;
+  }
+
+  if (!ocup) { cont.innerHTML = ''; return; }
+  const citas = citasDelDia(agFecha, agSede);
+  const porAgente = citas.filter(c => c.origen === 'agente').length;
+  const pendientes = citas.filter(c => c.estado === 'sin_autorizar' || c.estado === 'sin_orden').length;
+  cont.innerHTML = tiles([
+    [ocup.citas, 'Citas'],
+    [ocup.porcentaje + '%', 'Ocupación', `${Math.round(ocup.ocupados / 60)} h de ${Math.round(ocup.disponibles / 60)} h`],
+    [pendientes, 'Con algo pendiente'],
+    [porAgente, 'Agendadas por el agente']
+  ]);
+}
+
+function tiles(filas) {
+  return `<div class="tiles">${filas.map(([v, l, n]) => `
+    <div class="tile"><div class="tile-val">${escapar(String(v))}</div>
+      <div class="tile-lab">${escapar(l)}</div>
+      ${n ? `<div class="tile-nota">${escapar(n)}</div>` : ''}</div>`).join('')}</div>`;
+}
+
+function moverAgenda(pasos) {
+  const d = new Date(agFecha);
+  if (agVista === 'semana') d.setDate(d.getDate() + pasos * 7);
+  else if (agVista === 'lista') d.setDate(d.getDate() + pasos * 7);
+  else d.setDate(d.getDate() + pasos);
+  agFecha = d;
+  renderAgenda();
+}
+
+/* ============================================================
    Filtros avanzados
    ============================================================ */
 function abrirFiltros() {
@@ -1167,6 +1267,7 @@ function irA(nueva) {
   $$('.rail-btn').forEach(b => b.setAttribute('aria-current', String(b.dataset.seccion === nueva)));
   $('#crm-titulo').textContent = {
     conversaciones: 'Bandeja de conversaciones',
+    agenda: 'Agenda de citas',
     pacientes: 'Pacientes',
     informes: 'Informes',
     ajustes: 'Ajustes'
@@ -1178,6 +1279,7 @@ function irA(nueva) {
 
 function renderSeccion() {
   if (seccion === 'conversaciones') { refrescar(); return; }
+  if (seccion === 'agenda') { renderAgenda(); actualizarBadgeRail(); return; }
   if (seccion === 'pacientes') {
     renderPacientes($('#lista-pacientes'), filtroPacientes, id => { irA('conversaciones'); seleccionar(id); });
   } else if (seccion === 'informes') {
@@ -1258,6 +1360,16 @@ function montar() {
     elegirAdjunto(ev.target.files[0]);
     ev.target.value = '';
   });
+
+  // Agenda
+  $$('.agenda-vistas .inbox-filter').forEach(b => b.addEventListener('click', () => {
+    agVista = b.dataset.agvista;
+    renderAgenda();
+  }));
+  $('#ag-anterior').addEventListener('click', () => moverAgenda(-1));
+  $('#ag-siguiente').addEventListener('click', () => moverAgenda(1));
+  $('#ag-hoy').addEventListener('click', () => { agFecha = new Date(); renderAgenda(); });
+  $('#ag-sede').addEventListener('change', e => { agSede = e.target.value; renderAgenda(); });
 
   // Filtros avanzados
   $('#abrir-filtros').addEventListener('click', abrirFiltros);

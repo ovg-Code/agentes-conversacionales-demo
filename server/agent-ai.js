@@ -622,6 +622,11 @@ export function snapshotCRM(st) {
       autorizacion_seguro: st.slots.aseguradora ? 'pendiente' : null,
       cita_id: st.cita ? st.cita.cita_id : null,
       cita_fecha: st.cita ? st.cita.etiqueta : null,
+      // La etiqueta es para leer; la agenda necesita la marca real.
+      cita_inicio: st.cita ? st.cita.inicio : null,
+      cita_duracion: st.cita ? st.cita.duracion_min : null,
+      cita_sede: st.cita ? st.cita.sede : null,
+      cita_estudio_id: st.cita ? st.cita.estudio_id : null,
       fase: st.escalado ? 'escalado' : (st.cita ? 'cierre' : 'en curso')
     },
     labels: [...st.labels],

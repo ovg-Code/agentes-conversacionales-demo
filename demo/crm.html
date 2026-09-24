@@ -18,6 +18,7 @@
   <nav class="rail" aria-label="Secciones">
     <a class="rail-mark" href="index.html" title="Ir al simulador de chat" aria-label="Simulador de chat">OS</a>
     <button class="rail-btn" data-seccion="conversaciones" type="button" aria-label="Conversaciones" title="Conversaciones"><span data-icono="mensajes" data-icono-size="21"></span><span class="rail-badge" id="rail-badge" hidden>0</span><span class="rail-txt">Conversaciones</span></button>
+    <button class="rail-btn" data-seccion="agenda" type="button" aria-label="Agenda" title="Agenda"><span data-icono="calendario" data-icono-size="21"></span><span class="rail-txt">Agenda</span></button>
     <button class="rail-btn" data-seccion="pacientes" type="button" aria-label="Pacientes" title="Pacientes"><span data-icono="pacientes" data-icono-size="21"></span><span class="rail-txt">Pacientes</span></button>
     <button class="rail-btn" data-seccion="informes" type="button" aria-label="Informes" title="Informes"><span data-icono="informes" data-icono-size="21"></span><span class="rail-txt">Informes</span></button>
     <button class="rail-btn" data-seccion="ajustes" type="button" aria-label="Ajustes" title="Ajustes"><span data-icono="ajustes" data-icono-size="21"></span><span class="rail-txt">Ajustes</span></button>
@@ -154,6 +155,40 @@
     </aside>
 
   </main>
+
+  <section class="seccion" id="seccion-agenda" hidden>
+    <div class="agenda-layout">
+      <div class="agenda-principal">
+        <header class="agenda-barra">
+          <div class="agenda-nav">
+            <button class="btn" id="ag-anterior" type="button" aria-label="Anterior">‹</button>
+            <button class="btn" id="ag-hoy" type="button">Hoy</button>
+            <button class="btn" id="ag-siguiente" type="button" aria-label="Siguiente">›</button>
+          </div>
+          <strong class="agenda-titulo" id="ag-titulo">—</strong>
+          <div class="agenda-controles">
+            <div class="inbox-filters agenda-vistas" role="tablist">
+              <button class="inbox-filter" role="tab" aria-selected="false" data-agvista="dia">Día</button>
+              <button class="inbox-filter" role="tab" aria-selected="true"  data-agvista="semana">Semana</button>
+              <button class="inbox-filter" role="tab" aria-selected="false" data-agvista="lista">Lista</button>
+            </div>
+            <select id="ag-sede" class="campo" aria-label="Sede">
+              <option value="todas">Ambas sedes</option>
+              <option value="75E">Calle 75E</option>
+              <option value="76E">Calle 76E</option>
+            </select>
+          </div>
+        </header>
+
+        <div class="agenda-metricas" id="ag-metricas"></div>
+        <div class="agenda-vista" id="ag-vista"></div>
+      </div>
+
+      <aside class="agenda-ficha crm-col" aria-label="Detalle de la cita">
+        <div class="ctx" id="ag-ficha"></div>
+      </aside>
+    </div>
+  </section>
 
   <section class="seccion panel-ancho" id="seccion-pacientes" hidden>
     <header class="seccion-head">
