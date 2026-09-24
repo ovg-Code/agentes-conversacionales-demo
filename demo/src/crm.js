@@ -32,6 +32,10 @@ import {
 } from './crm-agenda.js';
 import { renderResultados, buscar } from './crm-buscador.js';
 import { filtrarGrupos, renderPaleta } from './command.js';
+import {
+  renderEntrenamiento, listarCorrecciones, anotarCorreccion, MOTIVOS
+} from './crm-entrenamiento.js';
+import { createAgent } from './agent.js';
 import { toast, toastOk, toastError } from './sonner.js';
 import {
   ATRIBUTOS, OPERADORES, atributoPorClave, cumple, describir,
@@ -400,9 +404,14 @@ function renderHilo(c, thread) {
     el.innerHTML = `
       ${cambio ? `<div class="msg-meta"><span class="pill ${tono}">${m.privado ? icono('nota', { size: 11 }) : ''}${escapar(quien)}</span><span>${hora(m.ts)}</span></div>` : ''}
       <div class="msg-bubble" title="${hora(m.ts)}">${m.privado ? '' : ''}${m.responde ? `<span class="respuesta-a"><b>${escapar(m.responde.autor === 'paciente' ? 'Paciente' : m.responde.autor === 'bot' ? 'Sofía' : 'Agente')}</b>${escapar(m.responde.texto.replace(/\*/g, ''))}</span>` : ''}${m.privado ? resaltarMenciones(m.texto || '') : formatearTexto(m.texto || '')}${m.adjunto ? renderAdjunto(m.adjunto) : ''}</div>
-      ${m.privado ? '' : `<button class="msg-citar" type="button" title="Responder a este mensaje">${icono('atras', { size: 13 })}Responder</button>`}`;
+      ${m.privado ? '' : `<span class="msg-acciones">
+        <button class="msg-citar" type="button" title="Responder a este mensaje">${icono('atras', { size: 13 })}Responder</button>
+        ${m.autor === 'bot' ? `<button class="msg-marcar" type="button" title="Marcar esta respuesta para entrenamiento">${icono('chispa', { size: 13 })}Marcar</button>` : ''}
+      </span>`}`;
     const btnCitar = el.querySelector('.msg-citar');
     if (btnCitar) btnCitar.addEventListener('click', () => citar(m));
+    const btnMarcar = el.querySelector('.msg-marcar');
+    if (btnMarcar) btnMarcar.addEventListener('click', () => abrirMarcar(m, c.id));
     thread.appendChild(el);
   }
   requestAnimationFrame(() => { thread.scrollTop = thread.scrollHeight; });
@@ -923,7 +932,7 @@ function manejarAtajo(ev) {
     ev.preventDefault(); abrirBuscador(); return;
   }
   if (ev.key === 'Escape') {
-    cerrarMenus(); cerrarRapidas(); cerrarMenciones(); cerrarBuscador(); cerrarFiltros();
+    cerrarMenus(); cerrarRapidas(); cerrarMenciones(); cerrarBuscador(); cerrarFiltros(); cerrarMarcar();
     $('#ayuda').hidden = true; $('#contextual').hidden = true;
     if (seleccion.size) limpiarSeleccion();
     if (citando) { citando = null; renderCita(); }
@@ -1284,6 +1293,7 @@ function comandosDisponibles() {
     ['agenda',         'Agenda',         'calendario', 'citas horarios calendario'],
     ['pacientes',      'Pacientes',      'pacientes',  'contactos personas'],
     ['informes',       'Informes',       'informes',   'metricas estadisticas datos'],
+    ['entrenamiento',  'Entrenamiento',  'chispa',     'evaluaciones correcciones conocimiento evals calidad'],
     ['ajustes',        'Ajustes',        'ajustes',    'equipo macros sla configuracion']
   ].map(([id, titulo, ico, claves]) => ({
     titulo: `Ir a ${titulo}`, claves, icono: ico,
@@ -1357,6 +1367,57 @@ function irAResultado(r) {
 }
 
 /* ============================================================
+   Marcar una respuesta del agente
+   ------------------------------------------------------------
+   El punto de entrada del entrenamiento está donde se ve el
+   problema: dentro de la conversación, bajo la respuesta que no
+   sirvió. Pedirle a alguien que abra otra pantalla para reportar
+   algo es garantizar que no lo reporte.
+   ============================================================ */
+let marcando = null;
+let motivoElegido = null;
+
+function abrirMarcar(mensaje, idConversacion) {
+  marcando = { mensaje, idConversacion };
+  motivoElegido = null;
+  $('#marcar-cita').textContent = (mensaje.texto || '').replace(/\*([^*]+)\*/g, '$1');
+  $('#marcar-texto').value = '';
+  $('#marcar-donde').textContent = '';
+  $('#marcar-guardar').disabled = true;
+  $('#marcar-motivos').innerHTML = Object.entries(MOTIVOS).map(([id, m]) => `
+    <button class="marcar-motivo" type="button" role="radio" aria-checked="false" data-motivo="${id}">
+      <strong>${m.nombre}</strong><span>${m.donde}</span>
+    </button>`).join('');
+  $$('#marcar-motivos .marcar-motivo').forEach(b => b.addEventListener('click', () => {
+    motivoElegido = b.dataset.motivo;
+    $$('#marcar-motivos .marcar-motivo').forEach(x => x.setAttribute('aria-checked', String(x === b)));
+    $('#marcar-donde').textContent = MOTIVOS[motivoElegido].detalle;
+    $('#marcar-guardar').disabled = false;
+  }));
+  $('#marcar').hidden = false;
+  $('#marcar-texto').focus();
+}
+
+function cerrarMarcar() { $('#marcar').hidden = true; marcando = null; }
+
+function guardarMarcar() {
+  if (!marcando || !motivoElegido) return;
+  anotarCorreccion({
+    idConversacion: marcando.idConversacion,
+    textoBot: marcando.mensaje.texto,
+    motivo: motivoElegido,
+    correccion: $('#marcar-texto').value.trim(),
+    autor: YO
+  });
+  cerrarMarcar();
+  actualizarBadgeRail();
+  toastOk('Corrección guardada', {
+    detalle: `Se arregla en: ${MOTIVOS[motivoElegido].donde.toLowerCase()}.`,
+    accion: { texto: 'Ver en Entrenamiento', alPulsar: () => irA('entrenamiento') }
+  });
+}
+
+/* ============================================================
    Navegación entre secciones
    ============================================================ */
 function irA(nueva) {
@@ -1368,6 +1429,7 @@ function irA(nueva) {
     agenda: 'Agenda de citas',
     pacientes: 'Pacientes',
     informes: 'Informes',
+    entrenamiento: 'Entrenamiento del agente',
     ajustes: 'Ajustes'
   }[nueva];
   // La búsqueda del encabezado solo tiene sentido en la bandeja.
@@ -1395,6 +1457,18 @@ function renderSeccion() {
     renderPacientes($('#lista-pacientes'), filtroPacientes, id => { irA('conversaciones'); seleccionar(id); });
   } else if (seccion === 'informes') {
     renderInformes($('#informes'));
+  } else if (seccion === 'entrenamiento') {
+    renderEntrenamiento($('#entrenamiento'), {
+      /* La suite corre contra el motor de reglas local: no gasta
+         tokens y es determinista, así que un fallo es un fallo y no
+         una tirada mala. Con ANTHROPIC_API_KEY, los mismos casos se
+         corren contra el modelo desde server/tests-loop.mjs. */
+      crearAgente: createAgent,
+      alCambiar: estado => {
+        toastOk(estado === 'convertida' ? 'Corrección convertida en caso' : 'Corrección descartada');
+        actualizarBadgeRail();
+      }
+    });
   } else if (seccion === 'ajustes') {
     renderAjustes($('#ajustes'), () => { toastOk('Ajustes guardados', { detalle: 'Los umbrales de SLA se aplican ya a la bandeja.' }); renderBandeja(); });
   }
@@ -1402,6 +1476,10 @@ function renderSeccion() {
 }
 
 function actualizarBadgeRail() {
+  const sinRevisar = listarCorrecciones().filter(c => c.estado === 'pendiente').length;
+  const badgeEnt = $('#rail-badge-ent');
+  if (badgeEnt) { badgeEnt.textContent = sinRevisar; badgeEnt.hidden = !sinRevisar; }
+
   const pendientes = listarConversaciones().filter(c => sinLeer(c) > 0).length;
   const badge = $('#rail-badge');
   if (!badge) return;
@@ -1415,6 +1493,11 @@ function actualizarBadgeRail() {
 function montar() {
   pintarIconos();
   enlazarHermanas();
+
+  // Diálogo de marcado
+  $('#marcar-cerrar').addEventListener('click', cerrarMarcar);
+  $('#marcar-guardar').addEventListener('click', guardarMarcar);
+  $('#marcar').addEventListener('click', ev => { if (ev.target.id === 'marcar') cerrarMarcar(); });
   // Vistas de la bandeja
   $$('.inbox-filter').forEach(b => b.addEventListener('click', () => {
     vista = b.dataset.vista;

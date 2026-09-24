@@ -26,6 +26,7 @@ import { TOOLS, formatoCorto } from '../demo/src/tools.js';
 import {
   SEDES, HORARIO, SCREENING_RM, ESTUDIOS,
   TERMINOS_EMERGENCIA, TERMINOS_HUMANO, TERMINOS_INTERPRETACION, TERMINOS_RECLAMO,
+  TERMINOS_INYECCION,
   buscarEstudio, normalizar, estudioPorId, dentroDeHorario
 } from '../demo/src/kb.js';
 import { crearCalendario, antesDeCalendario, despuesDeCalendario } from './calendario.js';
@@ -480,6 +481,11 @@ function triage(texto) {
   if (contiene(t, TERMINOS_HUMANO))         return { disparo: true, tipo: 'pedir_humano' };
   if (contiene(t, TERMINOS_INTERPRETACION)) return { disparo: true, tipo: 'interpretar_resultado' };
   if (contiene(t, TERMINOS_RECLAMO))        return { disparo: true, tipo: 'reclamo' };
+  /* El intento de inyección se corta ANTES del modelo. Mandarlo al
+     modelo para que lo rechace sería confiar en que el modelo gane
+     una discusión sobre sus propias reglas, que es justo lo que el
+     atacante quiere. */
+  if (contiene(t, TERMINOS_INYECCION))      return { disparo: true, tipo: 'inyeccion_prompt' };
   return { disparo: false, tipo: null };
 }
 
@@ -513,6 +519,28 @@ function manejarTriage(tri, st, trace) {
         { text: 'Lamento mucho la experiencia. Esto lo debe ver una persona del equipo, no yo.' },
         { text: `Te estoy transfiriendo con un asesor con prioridad alta. ${expectativaTiempo()}` }
       ];
+    case 'inyeccion_prompt': {
+      /* Un intento aislado no escala: escalar cada "ignora tus
+         instrucciones" inundaría la cola y le daría al atacante
+         justo lo que busca, la atención de una persona. Se
+         neutraliza y se reconduce. La insistencia sí escala. */
+      st.inyecciones = (st.inyecciones || 0) + 1;
+      st.labels.add('intento-inyeccion');
+      trace.guardrails.push({ nombre: 'anti_inyeccion', resultado: `intento neutralizado (${st.inyecciones})` });
+      if (st.inyecciones >= 3) {
+        escalar('abuso', 'medium', 'general',
+          `Tercer intento de manipular las instrucciones del agente en la misma conversación.`);
+        return [{ text: 'Prefiero que continúes con una persona del equipo. Ya le avisé.' }];
+      }
+      return [{
+        text: 'Soy Sofía, la asistente virtual de Open Side 🤖 Solo puedo ayudarte con citas, precios, preparaciones y resultados. ¿Con cuál de esos te ayudo?',
+        buttons: [
+          { label: 'Agendar cita', payload: 'agendar' },
+          { label: 'Ver precios', payload: 'cotizar' },
+          { label: 'Hablar con asesor', payload: 'humano' }
+        ]
+      }];
+    }
     default:
       return [{ text: 'No recibí texto. ¿Me cuentas en qué te ayudo?' }];
   }

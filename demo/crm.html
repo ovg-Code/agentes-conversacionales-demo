@@ -22,6 +22,7 @@
     <button class="rail-btn" data-seccion="agenda" type="button" aria-label="Agenda" title="Agenda"><span data-icono="calendario" data-icono-size="21"></span><span class="rail-txt">Agenda</span></button>
     <button class="rail-btn" data-seccion="pacientes" type="button" aria-label="Pacientes" title="Pacientes"><span data-icono="pacientes" data-icono-size="21"></span><span class="rail-txt">Pacientes</span></button>
     <button class="rail-btn" data-seccion="informes" type="button" aria-label="Informes" title="Informes"><span data-icono="informes" data-icono-size="21"></span><span class="rail-txt">Informes</span></button>
+    <button class="rail-btn" data-seccion="entrenamiento" type="button" aria-label="Entrenamiento" title="Entrenamiento"><span data-icono="chispa" data-icono-size="21"></span><span class="rail-badge" id="rail-badge-ent" hidden>0</span><span class="rail-txt">Entrenamiento</span></button>
     <button class="rail-btn" data-seccion="ajustes" type="button" aria-label="Ajustes" title="Ajustes"><span data-icono="ajustes" data-icono-size="21"></span><span class="rail-txt">Ajustes</span></button>
     <div class="rail-sep"></div>
     <div class="conv-avatar rail-yo" id="rail-yo" aria-hidden="true">—</div>
@@ -209,6 +210,10 @@
     <div id="informes"></div>
   </section>
 
+  <section class="seccion panel-ancho" id="seccion-entrenamiento" hidden>
+    <div id="entrenamiento"></div>
+  </section>
+
   <section class="seccion panel-ancho" id="seccion-ajustes" hidden>
     <header class="seccion-head">
       <div><h2>Ajustes</h2><p>Equipo, labels y respuestas rápidas.</p></div>
@@ -241,6 +246,25 @@
         <div class="spacer"></div>
         <button class="btn" id="filtros-guardar" type="button">Guardar como vista</button>
         <button class="btn primary" id="filtros-aplicar" type="button">Aplicar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="buscador" id="marcar" hidden role="dialog" aria-label="Marcar una respuesta del agente">
+    <div class="buscador-caja marcar-caja">
+      <div class="marcar-cab">
+        <strong>¿Qué falló en esta respuesta?</strong>
+        <button class="btn-ghost btn-icon" id="marcar-cerrar" type="button" aria-label="Cerrar">✕</button>
+      </div>
+      <blockquote class="marcar-cita" id="marcar-cita"></blockquote>
+      <div class="marcar-motivos" id="marcar-motivos" role="radiogroup" aria-label="Motivo"></div>
+      <label class="marcar-campo">
+        <span class="sh-muted">Qué debió decir <em>(opcional)</em></span>
+        <textarea class="campo" id="marcar-texto" rows="3" placeholder="La respuesta correcta, con tus palabras."></textarea>
+      </label>
+      <div class="marcar-pie">
+        <span class="sh-muted" id="marcar-donde"></span>
+        <button class="btn primary" id="marcar-guardar" type="button" disabled>Guardar corrección</button>
       </div>
     </div>
   </div>

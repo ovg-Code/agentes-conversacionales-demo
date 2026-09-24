@@ -49,6 +49,7 @@ export function createAgent() {
       cupos: [], cupoElegido: null, cita: null,
       cotizacion: null, seguro: null,
       sinEntender: 0,
+      inyecciones: 0,
       escalado: false,
       labels: new Set(),
       historial: []
@@ -196,7 +197,21 @@ export function createAgent() {
                 { text: 'Te estoy transfiriendo con un asesor con prioridad alta. ' + expectativaTiempo() }];
       }
       case 'inyeccion_prompt': {
-        trace.guardrails.push({ nombre: 'anti_inyeccion', resultado: 'intento neutralizado' });
+        /* Un intento aislado se neutraliza y se reconduce: escalar
+           cada uno inundaría la cola y le daría al atacante lo que
+           busca, la atención de una persona. La insistencia sí. */
+        st.inyecciones = (st.inyecciones || 0) + 1;
+        st.labels.add('intento-inyeccion');
+        trace.guardrails.push({ nombre: 'anti_inyeccion', resultado: `intento neutralizado (${st.inyecciones})` });
+        if (st.inyecciones >= 3) {
+          const esc = callTool('escalar_humano', {
+            motivo: 'abuso', prioridad: 'medium', equipo: 'general',
+            resumen: 'Tercer intento de manipular las instrucciones del agente en la misma conversación.'
+          }, trace);
+          st.fase = 'escalado'; st.escalado = true;
+          trace.escalamiento = esc;
+          return [{ text: 'Prefiero que continúes con una persona del equipo. Ya le avisé.' }];
+        }
         return [{
           text: 'Soy Sofía, la asistente virtual de Open Side 🤖 Solo puedo ayudarte con citas, precios, preparaciones y resultados. ¿Con cuál de esos te ayudo?',
           buttons: [
@@ -926,7 +941,6 @@ export function createAgent() {
         cita_inicio: st.cita ? st.cita.inicio : null,
         cita_duracion: st.cita ? st.cita.duracion_min : null,
         cita_sede: st.cita ? st.cita.sede : null,
-      cita_estudio_id: st.cita ? st.cita.estudio_id : null,
         cita_estudio_id: st.cita ? st.cita.estudio_id : null,
         autorizacion_seguro: s.aseguradora ? (s.aseguradora.autorizacionPrevia ? 'pendiente' : 'no_requiere') : null,
         fase: st.fase
