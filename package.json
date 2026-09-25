@@ -11,11 +11,12 @@
     "test:filtros": "node demo/tests-filtros.mjs",
     "test:agenda": "node demo/tests-agenda.mjs",
     "test:calendario": "node server/tests-calendario.mjs",
-    "test:todo": "node demo/tests.mjs && node demo/tests-filtros.mjs && node demo/tests-agenda.mjs && node demo/tests-hermanas.mjs && node demo/tests-command.mjs && node demo/tests-evals.mjs && node server/tests-loop.mjs && node server/tests-calendario.mjs && node server/tests-calendario-e2e.mjs",
+    "test:todo": "node demo/tests.mjs && node demo/tests-filtros.mjs && node demo/tests-agenda.mjs && node demo/tests-hermanas.mjs && node demo/tests-command.mjs && node demo/tests-evals.mjs && node demo/tests-dataset.mjs && node server/tests-loop.mjs && node server/tests-calendario.mjs && node server/tests-calendario-e2e.mjs",
     "test:calendario:e2e": "node server/tests-calendario-e2e.mjs",
     "test:hermanas": "node demo/tests-hermanas.mjs",
     "test:command": "node demo/tests-command.mjs",
-    "test:evals": "node demo/tests-evals.mjs"
+    "test:evals": "node demo/tests-evals.mjs",
+    "test:dataset": "node demo/tests-dataset.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0"

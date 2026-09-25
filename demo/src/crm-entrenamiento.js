@@ -23,6 +23,8 @@
 import { icono } from './iconos.js';
 import { CASOS, GRAVEDAD, correrSuite, resumir } from './evals.js';
 import { ESTUDIOS, ASEGURADORAS, SEDES, HORARIO } from './kb.js';
+import { listarConversaciones } from './bus.js';
+import { construir, aJSONL, proyeccion, UMBRALES, anonimizar, FINALIDAD_ENTRENAMIENTO } from './dataset.js';
 
 /* El texto del agente viene con el marcado de WhatsApp (*negrita*).
    Aquí estorba: se cita para leerlo, no para reproducirlo. */
@@ -148,6 +150,7 @@ export function renderEntrenamiento(cont, { crearAgente, alCambiar } = {}) {
         <button class="tab" role="tab" data-ent="evaluaciones" aria-selected="${pestana === 'evaluaciones'}">Evaluaciones</button>
         <button class="tab" role="tab" data-ent="correcciones" aria-selected="${pestana === 'correcciones'}">Correcciones</button>
         <button class="tab" role="tab" data-ent="conocimiento" aria-selected="${pestana === 'conocimiento'}">Conocimiento</button>
+        <button class="tab" role="tab" data-ent="dataset" aria-selected="${pestana === 'dataset'}">Dataset</button>
       </div>
     </div>
     <div class="ent-cuerpo" id="ent-cuerpo"></div>`;
@@ -158,6 +161,7 @@ export function renderEntrenamiento(cont, { crearAgente, alCambiar } = {}) {
   const cuerpo = cont.querySelector('#ent-cuerpo');
   if (pestana === 'evaluaciones') renderEvaluaciones(cuerpo, crearAgente);
   else if (pestana === 'correcciones') renderCorrecciones(cuerpo, alCambiar);
+  else if (pestana === 'dataset') renderDataset(cuerpo, alCambiar);
   else renderConocimiento(cuerpo);
 }
 
@@ -344,4 +348,142 @@ function renderConocimiento(cont) {
         <span>${(e.alias || []).map(a => `<code class="sh-mono">${esc(a)}</code>`).join(' ') || '<em class="sh-muted">sin alias</em>'}</span>
       </div>`).join('')}
     </div>`;
+}
+
+/* ============================================================
+   Dataset
+   ------------------------------------------------------------
+   La pestaña existe porque la decisión ya está tomada: va a haber
+   fine-tuning y aprendizaje por refuerzo. Lo que hace falta
+   entonces no es un entrenador —eso se cambia en una tarde— sino
+   el dato, que tarda años en acumularse. Esto lo acumula desde
+   hoy, en los tres formatos que las tres etapas necesitan, y con
+   la anonimización puesta ANTES del formato.
+
+   También enseña el número que nadie quiere mirar: cuántos pares
+   faltan para que entrenar tenga sentido.
+   ============================================================ */
+
+function descargar(nombre, contenido) {
+  const url = URL.createObjectURL(new Blob([contenido], { type: 'application/x-ndjson' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = nombre;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function renderDataset(cont, alCambiar) {
+  const conversaciones = listarConversaciones();
+  const correcciones = listarCorrecciones();
+  const d = construir({ correcciones, conversaciones, casos: CASOS, resultadosEvals: ultimosResultados || [] });
+
+  /* Ritmo real de los últimos 30 días, no una cifra inventada. */
+  const hace30 = Date.now() - 30 * 864e5;
+  const recientes = correcciones.filter(c => new Date(c.fecha).getTime() > hace30).length;
+  const porDia = recientes / 30;
+  const p = proyeccion(d.preferencias.length, porDia);
+
+  const motivos = Object.entries(d.resumen.motivosDeDescarte);
+
+  cont.innerHTML = `
+    <div class="sh-alert">
+      ${icono('info', { size: 16 })}
+      <div>
+        <strong>Claude no se puede afinar; el dato sí se puede acumular.</strong>
+        <p>Hoy solo Claude&nbsp;3 Haiku admite fine-tuning, y únicamente en Amazon Bedrock
+        (<code>us-west-2</code>): ningún modelo de generación actual, y nada por la API de Anthropic.
+        Eso no cancela el plan, lo ordena. Claude se queda de orquestador; lo que se afina son modelos
+        abiertos para tareas estrechas —clasificar intención, reconocer cómo llama la gente a su
+        dolor—. Y para las tres etapas hace falta el mismo insumo, que es lo que esta pestaña
+        construye: ejemplos, pares de preferencia y recompensas.</p>
+      </div>
+    </div>
+
+    <div class="ent-tiles">
+      ${tile(d.sft.length, 'Ejemplos SFT', 'conversación → respuesta correcta')}
+      ${tile(d.preferencias.length, 'Pares de preferencia', 'para DPO: elegida vs rechazada')}
+      ${tile(d.recompensas.length, 'Recompensas verificables', ultimosResultados ? 'del banco de evaluaciones' : 'ejecuta el banco primero', ultimosResultados ? '' : 'warn')}
+      ${tile(d.resumen.datosPersonalesRetirados, 'Datos personales retirados', 'antes de dar formato', 'ok')}
+    </div>
+
+    <div class="ent-progreso">
+      <div class="ent-progreso-cab">
+        <strong>${p.pares} de ${p.umbral} pares</strong>
+        <span class="sh-muted">${p.listo
+          ? 'Hay material suficiente para un DPO con sentido.'
+          : p.diasEstimados
+            ? `Al ritmo de los últimos 30 días (${ritmoLegible(porDia)}), faltan ${plazoLegible(p.diasEstimados)}.`
+            : 'Sin correcciones recientes no se puede estimar cuándo habrá suficiente.'}</span>
+      </div>
+      <div class="sh-progress"><i style="width:${Math.min(100, (p.pares / p.umbral) * 100).toFixed(1)}%"></i></div>
+      <p class="sh-muted ent-porque">
+        Un DPO empieza a notarse hacia los mil pares; por debajo de doscientos manda el ruido.
+        Es el número que conviene mirar antes de presupuestar GPUs, no después.
+      </p>
+    </div>
+
+    ${d.resumen.descartados ? `<div class="sh-alert destructive">
+      ${icono('alerta', { size: 16 })}
+      <div>
+        <strong>${d.resumen.descartados} correcciones no entran en el conjunto.</strong>
+        <p>${motivos.map(([m, n]) => `${n} · ${esc(textoMotivoDescarte(m))}`).join('<br>')}</p>
+      </div>
+    </div>` : ''}
+
+    <div class="sh-group-label">Cómo se usa cada formato</div>
+    <div class="ent-tabla">
+      <div class="ent-fila ent-fila-cab"><span>Etapa</span><span>Qué come</span><span>De dónde sale</span></div>
+      <div class="ent-fila"><span>SFT</span><span><code class="sh-mono">messages[]</code></span><span>lo que escribió quien corrigió</span></div>
+      <div class="ent-fila"><span>DPO</span><span><code class="sh-mono">prompt · chosen · rejected</code></span><span>cada corrección ya es un par</span></div>
+      <div class="ent-fila"><span>RL con recompensa verificable</span><span><code class="sh-mono">entrada · recompensa · peso</code></span><span>el banco de evaluaciones</span></div>
+    </div>
+
+    ${d.preferencias.length ? `<div class="sh-group-label">Un par, tal como saldría</div>
+    <div class="ent-par">
+      <div><span class="pill danger">rechazada</span><p>${esc(sinMarcado(d.preferencias[0].rejected))}</p></div>
+      <div><span class="pill ok">elegida</span><p>${esc(sinMarcado(d.preferencias[0].chosen))}</p></div>
+    </div>` : ''}
+
+    <div class="ent-barra">
+      <button class="btn" id="ds-sft" type="button" ${d.sft.length ? '' : 'disabled'}>Descargar SFT (.jsonl)</button>
+      <button class="btn" id="ds-dpo" type="button" ${d.preferencias.length ? '' : 'disabled'}>Descargar preferencias (.jsonl)</button>
+      <button class="btn" id="ds-rw" type="button" ${d.recompensas.length ? '' : 'disabled'}>Descargar recompensas (.jsonl)</button>
+    </div>`;
+
+  const bajar = (id, filas, nombre) => {
+    const b = cont.querySelector(id);
+    if (b && !b.disabled) b.addEventListener('click', () => {
+      descargar(nombre, aJSONL(filas));
+      alCambiar?.('exportado');
+    });
+  };
+  bajar('#ds-sft', d.sft, 'openside-sft.jsonl');
+  bajar('#ds-dpo', d.preferencias, 'openside-preferencias.jsonl');
+  bajar('#ds-rw', d.recompensas, 'openside-recompensas.jsonl');
+}
+
+/* «29 970 días» es exacto y no dice nada. Un plazo se entiende en
+   la unidad en que se vive, y de paso deja claro lo que cuesta
+   llegar al umbral sin subir el ritmo. */
+function plazoLegible(dias) {
+  if (dias < 60) return `unos ${dias} días`;
+  if (dias < 730) return `unos ${Math.round(dias / 30)} meses`;
+  return `más de ${Math.round(dias / 365)} años`;
+}
+
+function ritmoLegible(porDia) {
+  if (porDia >= 1) return `${porDia.toFixed(1)} al día`;
+  const porSemana = porDia * 7;
+  if (porSemana >= 1) return `${porSemana.toFixed(1)} por semana`;
+  return `${Math.round(porDia * 30)} al mes`;
+}
+
+function textoMotivoDescarte(m) {
+  return {
+    sin_consentimiento_de_atencion: 'sin consentimiento de atención',
+    sin_consentimiento_de_entrenamiento: 'el paciente consintió que le atendieran, no que se entrenara un modelo con su conversación: son finalidades distintas y hace falta pedirlo aparte',
+    conversacion_no_encontrada: 'sin la conversación no se puede comprobar el consentimiento',
+    descartada_por_el_equipo: 'descartadas por el equipo',
+    residuo_de_datos_personales: 'quedaba algo que parecía un dato personal tras anonimizar'
+  }[m] || m;
 }

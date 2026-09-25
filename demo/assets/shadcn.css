@@ -690,3 +690,28 @@ select.campo {
 .marcar-pie .sh-muted { flex: 1; font-size: 11.5px; line-height: 1.45; }
 
 .msg-acciones { display: inline-flex; gap: var(--sp-2); }
+
+/* --- Dataset --- */
+.ent-progreso {
+  padding: var(--sp-4);
+  border: 1px solid var(--border); border-radius: var(--r-xl);
+  background: var(--card); box-shadow: var(--shadow-xs);
+}
+.ent-progreso-cab {
+  display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap;
+  margin-bottom: var(--sp-3);
+}
+.ent-progreso-cab strong { font-size: var(--fs-md); font-variant-numeric: tabular-nums; }
+.ent-progreso-cab span { font-size: var(--fs-xs); }
+.ent-progreso .ent-porque { margin-top: var(--sp-3); }
+
+.ent-par { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sp-3); }
+.ent-par > div {
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border); border-radius: var(--r-xl);
+  background: var(--card);
+}
+.ent-par p { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); line-height: 1.55; }
+
+.attr.attr-switch { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.ctx-nota { margin: var(--sp-2) 0 0; font-size: 11px; color: var(--muted-foreground); line-height: 1.5; }

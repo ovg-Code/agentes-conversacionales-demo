@@ -12,7 +12,7 @@
 import {
   listarConversaciones, obtenerConversacion, suscribir,
   publicarMensaje, cambiarEstado, agregarNota, eliminarConversacion,
-  actualizarCampos, marcarLeida, posponer, alternarLabel,
+  actualizarCampos, marcarLeida, posponer, alternarLabel, marcarConsentimientoEntrenamiento,
   estadoEfectivo, sinLeer
 } from './bus.js';
 import {
@@ -471,6 +471,16 @@ function renderContexto(c, estado) {
       ${attr('aseguradora', contacto.aseguradora)}
       ${attr('consentimiento', contacto.consentimiento_datos ? 'otorgado' : 'no otorgado')}
       ${attr('registrado', fechaLegible(contacto.consentimiento_ts))}
+      <div class="attr attr-switch">
+        <span class="k">usar para entrenar</span>
+        <button class="sh-switch" id="sw-entrenamiento" type="button" role="switch"
+                aria-checked="${contacto.consentimiento_entrenamiento ? 'true' : 'false'}"
+                aria-label="Consentimiento para usar esta conversación en entrenamiento"
+                ${contacto.consentimiento_datos ? '' : 'disabled'}></button>
+      </div>
+      <p class="ctx-nota">${contacto.consentimiento_datos
+        ? 'Finalidad distinta de la de atención: hay que pedirla aparte y queda registrada.'
+        : 'Requiere primero el consentimiento de atención.'}</p>
     </div>
 
     <div class="ctx-block">
@@ -513,6 +523,20 @@ function renderContexto(c, estado) {
         <button class="btn block" id="btn-eliminar" type="button">Descartar conversación</button>
       </div>
     </div>`;
+
+  // Consentimiento de entrenamiento
+  const sw = $('#sw-entrenamiento');
+  if (sw) sw.addEventListener('click', () => {
+    const nuevo = sw.getAttribute('aria-checked') !== 'true';
+    sw.setAttribute('aria-checked', String(nuevo));
+    marcarConsentimientoEntrenamiento(c.id, nuevo);
+    toastOk(nuevo ? 'Consentimiento de entrenamiento registrado' : 'Consentimiento de entrenamiento retirado', {
+      detalle: nuevo
+        ? 'Esta conversación puede entrar en el conjunto, ya anonimizada.'
+        : 'Sale del conjunto en la próxima construcción.'
+    });
+    refrescar();
+  });
 
   // Editor de labels
   const btnLabels = $('#btn-labels');

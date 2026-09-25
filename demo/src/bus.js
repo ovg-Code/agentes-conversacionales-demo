@@ -153,6 +153,23 @@ export function actualizarCampos(idConversacion, campos, quien = 'humano') {
   return conv;
 }
 
+/* El consentimiento para ENTRENAR es una finalidad distinta de la
+   de atender, así que vive en su propio campo y se otorga aparte.
+   Mezclarlos sería justo lo que la Ley 81 no permite. */
+export function marcarConsentimientoEntrenamiento(idConversacion, otorgado) {
+  const datos = leerTodo();
+  const conv = datos[idConversacion];
+  if (!conv) return null;
+  conv.crm = conv.crm || {};
+  conv.crm.contacto = conv.crm.contacto || {};
+  conv.crm.contacto.consentimiento_entrenamiento = Boolean(otorgado);
+  conv.crm.contacto.consentimiento_entrenamiento_ts = otorgado ? new Date().toISOString() : null;
+  conv.actualizado = Date.now();
+  escribirTodo(datos);
+  emitir({ tipo: 'campos_actualizados', idConversacion, campos: { consentimiento_entrenamiento: Boolean(otorgado) }, quien: 'humano' });
+  return conv;
+}
+
 /** Marca como leída hasta ahora. */
 export function marcarLeida(idConversacion) {
   const datos = leerTodo();
